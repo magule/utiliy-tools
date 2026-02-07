@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Regex Tester</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Regex Tester</h1>
+
+    <div class="tester">
+        <div class="pattern-section">
+            <div class="section-header">
+                <span>Pattern</span>
+                <div class="flags">
+                    <label class="flag-toggle" title="Global">
+                        <input type="checkbox" id="flagG" checked>
+                        <span>g</span>
+                    </label>
+                    <label class="flag-toggle" title="Case Insensitive">
+                        <input type="checkbox" id="flagI">
+                        <span>i</span>
+                    </label>
+                    <label class="flag-toggle" title="Multiline">
+                        <input type="checkbox" id="flagM">
+                        <span>m</span>
+                    </label>
+                </div>
+            </div>
+            <div class="pattern-input">
+                <span class="slash">/</span>
+                <input type="text" id="pattern" placeholder="Enter regex pattern...">
+                <span class="slash">/</span>
+                <span class="flags-display" id="flagsDisplay">g</span>
+            </div>
+            <div class="pattern-error" id="patternError"></div>
+        </div>
+
+        <div class="text-section">
+            <div class="section-header">
+                <span>Test String</span>
+            </div>
+            <div class="text-input" id="textInput" contenteditable="true">Enter your test string here...</div>
+        </div>
+
+        <div class="matches-section">
+            <div class="section-header">
+                <span>Matches</span>
+                <span class="match-count" id="matchCount">0 matches</span>
+            </div>
+            <div class="matches-list" id="matchesList"></div>
+        </div>
+
+        <div class="cheatsheet">
+            <div class="section-header">
+                <span>Quick Reference</span>
+            </div>
+            <div class="cheat-grid">
+                <div class="cheat-item"><code>.</code> Any character</div>
+                <div class="cheat-item"><code>\d</code> Digit</div>
+                <div class="cheat-item"><code>\w</code> Word char</div>
+                <div class="cheat-item"><code>\s</code> Whitespace</div>
+                <div class="cheat-item"><code>^</code> Start</div>
+                <div class="cheat-item"><code>$</code> End</div>
+                <div class="cheat-item"><code>*</code> 0 or more</div>
+                <div class="cheat-item"><code>+</code> 1 or more</div>
+                <div class="cheat-item"><code>?</code> 0 or 1</div>
+                <div class="cheat-item"><code>{n}</code> Exactly n</div>
+                <div class="cheat-item"><code>[abc]</code> a, b, or c</div>
+                <div class="cheat-item"><code>(abc)</code> Group</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const patternInput = document.getElementById('pattern');
+    const textInput = document.getElementById('textInput');
+    const flagG = document.getElementById('flagG');
+    const flagI = document.getElementById('flagI');
+    const flagM = document.getElementById('flagM');
+    const flagsDisplay = document.getElementById('flagsDisplay');
+    const patternError = document.getElementById('patternError');
+    const matchCount = document.getElementById('matchCount');
+    const matchesList = document.getElementById('matchesList');
+
+    function getFlags() {
+        let flags = '';
+        if (flagG.checked) flags += 'g';
+        if (flagI.checked) flags += 'i';
+        if (flagM.checked) flags += 'm';
+        return flags;
+    }
+
+    function updateFlagsDisplay() {
+        flagsDisplay.textContent = getFlags() || 'none';
+    }
+
+    function escapeHtml(text) {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function test() {
+        const pattern = patternInput.value;
+        const text = textInput.innerText;
+
+        patternError.textContent = '';
+
+        if (!pattern) {
+            textInput.innerHTML = escapeHtml(text);
+            matchCount.textContent = '0 matches';
+            matchesList.innerHTML = '<div class="no-matches">Enter a pattern to see matches</div>';
+            return;
+        }
+
+        try {
+            const flags = getFlags();
+            const regex = new RegExp(pattern, flags);
+            const matches = [...text.matchAll(new RegExp(pattern, flags.includes('g') ? flags : flags + 'g'))];
+
+            matchCount.textContent = matches.length + ' match' + (matches.length !== 1 ? 'es' : '');
+
+            // Highlight matches in text
+            if (matches.length > 0) {
+                let highlighted = escapeHtml(text);
+                let offset = 0;
+
+                // Sort matches by index to apply highlighting correctly
+                const sortedMatches = matches.map(m => ({
+                    index: m.index,
+                    length: m[0].length,
+                    text: m[0]
+                })).sort((a, b) => a.index - b.index);
+
+                sortedMatches.forEach((match, i) => {
+                    const start = match.index + offset;
+                    const end = start + match.length;
+                    const before = highlighted.substring(0, start);
+                    const matchText = highlighted.substring(start, end);
+                    const after = highlighted.substring(end);
+                    highlighted = before + '<mark>' + matchText + '</mark>' + after;
+                    offset += '<mark></mark>'.length;
+                });
+
+                textInput.innerHTML = highlighted;
+
+                // Show matches list
+                matchesList.innerHTML = matches.map((m, i) => `
+                    <div class="match-item">
+                        <span class="match-index">${i + 1}</span>
+                        <span class="match-text">${escapeHtml(m[0])}</span>
+                        <span class="match-pos">pos: ${m.index}</span>
+                    </div>
+                `).join('');
+            } else {
+                textInput.innerHTML = escapeHtml(text);
+                matchesList.innerHTML = '<div class="no-matches">No matches found</div>';
+            }
+
+        } catch (e) {
+            patternError.textContent = e.message;
+            textInput.innerHTML = escapeHtml(text);
+            matchCount.textContent = '0 matches';
+            matchesList.innerHTML = '<div class="no-matches">Invalid pattern</div>';
+        }
+    }
+
+    patternInput.addEventListener('input', test);
+    textInput.addEventListener('input', test);
+    [flagG, flagI, flagM].forEach(flag => {
+        flag.addEventListener('change', () => {
+            updateFlagsDisplay();
+            test();
+        });
+    });
+
+    updateFlagsDisplay();
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .tester {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 600px;
+        margin: 0 auto;
+        text-align: left;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .section-header > span {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .flags {
+        display: flex;
+        gap: 5px;
+    }
+
+    .flag-toggle {
+        cursor: pointer;
+    }
+
+    .flag-toggle input {
+        display: none;
+    }
+
+    .flag-toggle span {
+        display: inline-block;
+        padding: 4px 8px;
+        font-size: 11px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 4px;
+        color: #555;
+        transition: all 0.2s ease;
+    }
+
+    .flag-toggle input:checked + span {
+        background: #2ecc71;
+        border-color: #2ecc71;
+        color: #fff;
+    }
+
+    .pattern-section {
+        margin-bottom: 20px;
+    }
+
+    .pattern-input {
+        display: flex;
+        align-items: center;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 10px;
+        padding: 0 15px;
+    }
+
+    .pattern-input .slash {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #555;
+        font-size: 18px;
+    }
+
+    .pattern-input input {
+        flex: 1;
+        padding: 15px 10px;
+        font-size: 14px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        background: transparent;
+        border: none;
+        color: #2ecc71;
+        outline: none;
+    }
+
+    .pattern-input input::placeholder {
+        color: #444;
+    }
+
+    .flags-display {
+        font-size: 12px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #888;
+        min-width: 30px;
+    }
+
+    .pattern-error {
+        font-size: 12px;
+        color: #e74c3c;
+        margin-top: 8px;
+        min-height: 18px;
+    }
+
+    .text-section {
+        margin-bottom: 20px;
+    }
+
+    .text-input {
+        min-height: 100px;
+        padding: 15px;
+        font-size: 14px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        line-height: 1.6;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 10px;
+        color: #fff;
+        outline: none;
+    }
+
+    .text-input:focus {
+        border-color: #444;
+    }
+
+    .text-input mark {
+        background: rgba(46, 204, 113, 0.3);
+        color: #2ecc71;
+        padding: 2px 0;
+        border-radius: 2px;
+    }
+
+    .matches-section {
+        margin-bottom: 20px;
+    }
+
+    .match-count {
+        font-size: 12px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+    }
+
+    .matches-list {
+        background: #252525;
+        border-radius: 10px;
+        max-height: 150px;
+        overflow-y: auto;
+    }
+
+    .match-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 15px;
+        border-bottom: 1px solid #333;
+    }
+
+    .match-item:last-child {
+        border-bottom: none;
+    }
+
+    .match-index {
+        font-size: 10px;
+        color: #555;
+        min-width: 20px;
+    }
+
+    .match-text {
+        flex: 1;
+        font-size: 13px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+    }
+
+    .match-pos {
+        font-size: 10px;
+        color: #444;
+    }
+
+    .no-matches {
+        padding: 20px;
+        text-align: center;
+        color: #444;
+        font-size: 13px;
+    }
+
+    .cheatsheet {
+        padding-top: 20px;
+        border-top: 1px solid #252525;
+    }
+
+    .cheat-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    .cheat-item {
+        font-size: 11px;
+        color: #555;
+        padding: 8px;
+        background: #252525;
+        border-radius: 6px;
+    }
+
+    .cheat-item code {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #888;
+        margin-right: 5px;
+    }
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

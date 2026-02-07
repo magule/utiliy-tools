@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Instagram Caption Generator</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Instagram Caption</h1>
+
+    <div class="generator">
+        <div class="input-section">
+            <textarea id="caption" placeholder="Write your caption..."></textarea>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-value" id="charCount">0</span>
+                <span class="stat-label">of 2,200</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="hashtagCount">0</span>
+                <span class="stat-label">of 30 #</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="mentionCount">0</span>
+                <span class="stat-label">Mentions</span>
+            </div>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="warnings" id="warnings"></div>
+
+        <div class="tools">
+            <div class="tool-section">
+                <div class="section-header">
+                    <span>Line Breaks</span>
+                </div>
+                <div class="line-break-tools">
+                    <button class="tool-btn" id="addBreakBtn">Add Invisible Break</button>
+                    <button class="tool-btn" id="convertBreaksBtn">Convert to Dots</button>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <div class="section-header">
+                    <span>Popular Hashtags</span>
+                </div>
+                <div class="hashtag-categories">
+                    <button class="category-btn active" data-category="general">General</button>
+                    <button class="category-btn" data-category="lifestyle">Lifestyle</button>
+                    <button class="category-btn" data-category="business">Business</button>
+                    <button class="category-btn" data-category="travel">Travel</button>
+                </div>
+                <div class="hashtag-list" id="hashtagList"></div>
+            </div>
+        </div>
+
+        <div class="preview-section">
+            <div class="section-header">
+                <span>Preview</span>
+                <button class="copy-btn" id="copyBtn">Copy</button>
+            </div>
+            <div class="insta-preview">
+                <div class="insta-header">
+                    <div class="insta-avatar"></div>
+                    <span class="insta-username">your_username</span>
+                </div>
+                <div class="insta-image"></div>
+                <div class="insta-caption" id="previewCaption"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const caption = document.getElementById('caption');
+    const charCount = document.getElementById('charCount');
+    const hashtagCount = document.getElementById('hashtagCount');
+    const mentionCount = document.getElementById('mentionCount');
+    const progressFill = document.getElementById('progressFill');
+    const warnings = document.getElementById('warnings');
+    const previewCaption = document.getElementById('previewCaption');
+    const hashtagList = document.getElementById('hashtagList');
+    const copyBtn = document.getElementById('copyBtn');
+    const addBreakBtn = document.getElementById('addBreakBtn');
+    const convertBreaksBtn = document.getElementById('convertBreaksBtn');
+
+    const MAX_CHARS = 2200;
+    const MAX_HASHTAGS = 30;
+
+    const popularHashtags = {
+        general: ['love', 'instagood', 'photooftheday', 'beautiful', 'happy', 'cute', 'fashion', 'followme', 'like4like', 'picoftheday', 'selfie', 'instadaily'],
+        lifestyle: ['lifestyle', 'life', 'motivation', 'fitness', 'health', 'wellness', 'mindfulness', 'selflove', 'positivity', 'inspiration', 'goals', 'success'],
+        business: ['entrepreneur', 'business', 'success', 'motivation', 'startup', 'marketing', 'smallbusiness', 'branding', 'hustle', 'growth', 'ceo', 'leadership'],
+        travel: ['travel', 'wanderlust', 'adventure', 'explore', 'vacation', 'travelgram', 'instatravel', 'travelphotography', 'nature', 'beach', 'sunset', 'mountains']
+    };
+
+    function formatCaption(text) {
+        let formatted = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        formatted = formatted.replace(/(#\w+)/g, '<span class="hashtag">$1</span>');
+        formatted = formatted.replace(/(@\w+)/g, '<span class="mention">$1</span>');
+        formatted = formatted.replace(/\n/g, '<br>');
+        return formatted;
+    }
+
+    function update() {
+        const text = caption.value;
+        const chars = text.length;
+        const hashtags = (text.match(/#\w+/g) || []).length;
+        const mentions = (text.match(/@\w+/g) || []).length;
+
+        charCount.textContent = chars.toLocaleString();
+        hashtagCount.textContent = hashtags;
+        mentionCount.textContent = mentions;
+
+        // Progress bar
+        const progress = Math.min((chars / MAX_CHARS) * 100, 100);
+        progressFill.style.width = progress + '%';
+
+        if (chars > MAX_CHARS) {
+            progressFill.classList.add('over');
+        } else if (chars > MAX_CHARS * 0.9) {
+            progressFill.classList.add('warning');
+            progressFill.classList.remove('over');
+        } else {
+            progressFill.classList.remove('warning', 'over');
+        }
+
+        // Warnings
+        const warningList = [];
+        if (chars > MAX_CHARS) {
+            warningList.push(`Caption is ${chars - MAX_CHARS} characters over limit`);
+        }
+        if (hashtags > MAX_HASHTAGS) {
+            warningList.push(`Too many hashtags (${hashtags}/${MAX_HASHTAGS})`);
+        }
+        if (hashtags > 0 && hashtags < 5) {
+            warningList.push('Consider using 5-10 hashtags for better reach');
+        }
+
+        warnings.innerHTML = warningList.map(w =>
+            `<div class="warning-item">${w}</div>`
+        ).join('');
+
+        // Preview
+        previewCaption.innerHTML = text.trim()
+            ? formatCaption(text)
+            : '<span class="placeholder">Your caption will appear here...</span>';
+    }
+
+    function renderHashtags(category) {
+        const tags = popularHashtags[category];
+        hashtagList.innerHTML = tags.map(tag =>
+            `<button class="hashtag-btn" data-tag="${tag}">#${tag}</button>`
+        ).join('');
+    }
+
+    caption.addEventListener('input', update);
+
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderHashtags(btn.dataset.category);
+        });
+    });
+
+    hashtagList.addEventListener('click', (e) => {
+        if (e.target.classList.contains('hashtag-btn')) {
+            const tag = '#' + e.target.dataset.tag + ' ';
+            caption.value += tag;
+            caption.focus();
+            update();
+        }
+    });
+
+    addBreakBtn.addEventListener('click', () => {
+        const pos = caption.selectionStart;
+        const before = caption.value.substring(0, pos);
+        const after = caption.value.substring(pos);
+        caption.value = before + '\n⠀\n' + after;
+        update();
+    });
+
+    convertBreaksBtn.addEventListener('click', () => {
+        caption.value = caption.value.replace(/\n\n+/g, '\n.\n.\n.\n');
+        update();
+    });
+
+    copyBtn.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(caption.value);
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+    });
+
+    // Initialize
+    renderHashtags('general');
+    update();
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .generator {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 550px;
+        margin: 0 auto;
+        text-align: left;
+    }
+
+    .input-section {
+        margin-bottom: 15px;
+    }
+
+    textarea {
+        width: 100%;
+        height: 120px;
+        padding: 15px;
+        font-size: 14px;
+        font-family: inherit;
+        line-height: 1.6;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 12px;
+        color: #fff;
+        outline: none;
+        resize: vertical;
+    }
+
+    textarea:focus {
+        border-color: #e1306c;
+    }
+
+    textarea::placeholder {
+        color: #555;
+    }
+
+    .stats {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        margin-bottom: 10px;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 1.3rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #e1306c;
+    }
+
+    .stat-label {
+        font-size: 10px;
+        color: #555;
+    }
+
+    .progress-bar {
+        height: 4px;
+        background: #333;
+        border-radius: 2px;
+        margin-bottom: 15px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(45deg, #405de6, #5851db, #833ab4, #c13584, #e1306c, #fd1d1d);
+        transition: width 0.2s;
+    }
+
+    .progress-fill.warning {
+        background: #f1c40f;
+    }
+
+    .progress-fill.over {
+        background: #e74c3c;
+    }
+
+    .warnings {
+        margin-bottom: 15px;
+    }
+
+    .warning-item {
+        padding: 10px;
+        background: rgba(231, 76, 60, 0.1);
+        border-radius: 8px;
+        font-size: 12px;
+        color: #e74c3c;
+        margin-bottom: 8px;
+    }
+
+    .tools {
+        margin-bottom: 20px;
+    }
+
+    .tool-section {
+        margin-bottom: 15px;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .section-header span {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .line-break-tools {
+        display: flex;
+        gap: 8px;
+    }
+
+    .tool-btn {
+        flex: 1;
+        padding: 10px;
+        font-size: 11px;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 8px;
+        color: #888;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .tool-btn:hover {
+        border-color: #555;
+        color: #fff;
+    }
+
+    .hashtag-categories {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+
+    .category-btn {
+        padding: 6px 12px;
+        font-size: 10px;
+        background: transparent;
+        border: 1px solid #333;
+        border-radius: 20px;
+        color: #888;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .category-btn.active {
+        background: #e1306c;
+        border-color: #e1306c;
+        color: #fff;
+    }
+
+    .hashtag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .hashtag-btn {
+        padding: 6px 10px;
+        font-size: 11px;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 4px;
+        color: #888;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .hashtag-btn:hover {
+        background: #333;
+        color: #e1306c;
+    }
+
+    .copy-btn {
+        padding: 5px 12px;
+        font-size: 10px;
+        background: #333;
+        border: none;
+        border-radius: 4px;
+        color: #888;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .insta-preview {
+        background: #252525;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .insta-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .insta-avatar {
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+        border-radius: 50%;
+    }
+
+    .insta-username {
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .insta-image {
+        width: 100%;
+        height: 150px;
+        background: linear-gradient(45deg, #405de6, #833ab4, #e1306c);
+    }
+
+    .insta-caption {
+        padding: 12px;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .insta-caption .placeholder {
+        color: #555;
+    }
+
+    .insta-caption .hashtag {
+        color: #00376b;
+    }
+
+    .insta-caption .mention {
+        color: #00376b;
+    }
+
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

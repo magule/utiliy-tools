@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Case Converter</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Case Converter</h1>
+
+    <div class="converter">
+        <div class="input-section">
+            <textarea id="input" placeholder="Enter your text here..."></textarea>
+        </div>
+
+        <div class="case-buttons">
+            <button class="case-btn" data-case="lower">lowercase</button>
+            <button class="case-btn" data-case="upper">UPPERCASE</button>
+            <button class="case-btn" data-case="title">Title Case</button>
+            <button class="case-btn" data-case="sentence">Sentence case</button>
+            <button class="case-btn" data-case="camel">camelCase</button>
+            <button class="case-btn" data-case="pascal">PascalCase</button>
+            <button class="case-btn" data-case="snake">snake_case</button>
+            <button class="case-btn" data-case="kebab">kebab-case</button>
+            <button class="case-btn" data-case="constant">CONSTANT_CASE</button>
+            <button class="case-btn" data-case="dot">dot.case</button>
+            <button class="case-btn" data-case="toggle">tOGGLE cASE</button>
+            <button class="case-btn" data-case="alternating">aLtErNaTiNg</button>
+        </div>
+
+        <div class="output-section">
+            <div class="output-header">
+                <span id="charCount">0 characters</span>
+                <button class="copy-btn" id="copyBtn">Copy</button>
+            </div>
+            <div class="output" id="output"></div>
+        </div>
+    </div>
+
+<script>
+    const input = document.getElementById('input');
+    const output = document.getElementById('output');
+    const charCount = document.getElementById('charCount');
+    const copyBtn = document.getElementById('copyBtn');
+
+    function toWords(str) {
+        return str
+            .replace(/([a-z])([A-Z])/g, '$1 $2')
+            .replace(/[_\-\.]/g, ' ')
+            .split(/\s+/)
+            .filter(w => w.length > 0);
+    }
+
+    const converters = {
+        lower: (text) => text.toLowerCase(),
+        upper: (text) => text.toUpperCase(),
+        title: (text) => text.replace(/\w\S*/g, (txt) =>
+            txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+        ),
+        sentence: (text) => {
+            return text.toLowerCase().replace(/(^\s*\w|[.!?]\s*\w)/g, (c) => c.toUpperCase());
+        },
+        camel: (text) => {
+            const words = toWords(text);
+            return words.map((w, i) =>
+                i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+            ).join('');
+        },
+        pascal: (text) => {
+            const words = toWords(text);
+            return words.map(w =>
+                w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+            ).join('');
+        },
+        snake: (text) => {
+            const words = toWords(text);
+            return words.map(w => w.toLowerCase()).join('_');
+        },
+        kebab: (text) => {
+            const words = toWords(text);
+            return words.map(w => w.toLowerCase()).join('-');
+        },
+        constant: (text) => {
+            const words = toWords(text);
+            return words.map(w => w.toUpperCase()).join('_');
+        },
+        dot: (text) => {
+            const words = toWords(text);
+            return words.map(w => w.toLowerCase()).join('.');
+        },
+        toggle: (text) => {
+            return text.split('').map(c => {
+                if (c === c.toUpperCase()) return c.toLowerCase();
+                return c.toUpperCase();
+            }).join('');
+        },
+        alternating: (text) => {
+            let i = 0;
+            return text.split('').map(c => {
+                if (/[a-zA-Z]/.test(c)) {
+                    return i++ % 2 === 0 ? c.toLowerCase() : c.toUpperCase();
+                }
+                return c;
+            }).join('');
+        }
+    };
+
+    document.querySelectorAll('.case-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const caseType = btn.dataset.case;
+            const text = input.value;
+            const result = converters[caseType](text);
+            output.textContent = result;
+            updateCount(result);
+
+            document.querySelectorAll('.case-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+
+    function updateCount(text) {
+        const count = text.length;
+        charCount.textContent = count + ' character' + (count !== 1 ? 's' : '');
+    }
+
+    input.addEventListener('input', () => {
+        output.textContent = '';
+        updateCount('');
+        document.querySelectorAll('.case-btn').forEach(b => b.classList.remove('active'));
+    });
+
+    copyBtn.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(output.textContent);
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+    });
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .converter {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .input-section {
+        margin-bottom: 20px;
+    }
+
+    .input-section textarea {
+        width: 100%;
+        height: 120px;
+        padding: 15px;
+        font-size: 14px;
+        font-family: inherit;
+        line-height: 1.6;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 10px;
+        color: #fff;
+        outline: none;
+        resize: vertical;
+    }
+
+    .input-section textarea:focus {
+        border-color: #444;
+    }
+
+    .input-section textarea::placeholder {
+        color: #555;
+    }
+
+    .case-buttons {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+
+    .case-btn {
+        padding: 12px 8px;
+        font-size: 11px;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 8px;
+        color: #888;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .case-btn:hover {
+        border-color: #555;
+        color: #fff;
+    }
+
+    .case-btn.active {
+        background: #2ecc71;
+        border-color: #2ecc71;
+        color: #fff;
+    }
+
+    .output-section {
+        background: #252525;
+        border-radius: 10px;
+        overflow: hidden;
+        text-align: left;
+    }
+
+    .output-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        border-bottom: 1px solid #333;
+    }
+
+    #charCount {
+        font-size: 11px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+    }
+
+    .copy-btn {
+        padding: 6px 12px;
+        font-size: 10px;
+        font-weight: 500;
+        background: #333;
+        border: none;
+        border-radius: 4px;
+        color: #888;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .output {
+        padding: 15px;
+        font-size: 14px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        line-height: 1.6;
+        color: #fff;
+        min-height: 60px;
+        max-height: 200px;
+        overflow-y: auto;
+        word-break: break-all;
+    }
+
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

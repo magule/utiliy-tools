@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Duplicate Line Remover</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Duplicate Line Remover</h1>
+
+    <div class="remover">
+        <div class="input-section">
+            <div class="section-header">
+                <span>Input</span>
+                <span class="count" id="inputCount">0 lines</span>
+            </div>
+            <textarea id="input" placeholder="Paste your text here (one item per line)..."></textarea>
+        </div>
+
+        <div class="options">
+            <label class="checkbox-label">
+                <input type="checkbox" id="caseSensitive" checked>
+                <span>Case sensitive</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="trimWhitespace" checked>
+                <span>Trim whitespace</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="removeEmpty" checked>
+                <span>Remove empty lines</span>
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="sortOutput">
+                <span>Sort alphabetically</span>
+            </label>
+        </div>
+
+        <div class="actions">
+            <button class="action-btn" id="removeBtn">Remove Duplicates</button>
+        </div>
+
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stat">
+                <span class="stat-value" id="removedCount">0</span>
+                <span class="stat-label">Removed</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="remainingCount">0</span>
+                <span class="stat-label">Remaining</span>
+            </div>
+        </div>
+
+        <div class="output-section" id="outputSection" style="display: none;">
+            <div class="section-header">
+                <span>Output</span>
+                <button class="copy-btn" id="copyBtn">Copy</button>
+            </div>
+            <textarea id="output" readonly></textarea>
+        </div>
+    </div>
+
+<script>
+    const input = document.getElementById('input');
+    const output = document.getElementById('output');
+    const inputCount = document.getElementById('inputCount');
+    const caseSensitive = document.getElementById('caseSensitive');
+    const trimWhitespace = document.getElementById('trimWhitespace');
+    const removeEmpty = document.getElementById('removeEmpty');
+    const sortOutput = document.getElementById('sortOutput');
+    const removeBtn = document.getElementById('removeBtn');
+    const stats = document.getElementById('stats');
+    const removedCount = document.getElementById('removedCount');
+    const remainingCount = document.getElementById('remainingCount');
+    const outputSection = document.getElementById('outputSection');
+    const copyBtn = document.getElementById('copyBtn');
+
+    input.addEventListener('input', () => {
+        const lines = input.value.split('\n');
+        inputCount.textContent = lines.length + ' line' + (lines.length !== 1 ? 's' : '');
+    });
+
+    removeBtn.addEventListener('click', () => {
+        let lines = input.value.split('\n');
+        const originalCount = lines.length;
+
+        if (trimWhitespace.checked) {
+            lines = lines.map(l => l.trim());
+        }
+
+        if (removeEmpty.checked) {
+            lines = lines.filter(l => l.length > 0);
+        }
+
+        const seen = new Set();
+        const unique = [];
+
+        for (const line of lines) {
+            const key = caseSensitive.checked ? line : line.toLowerCase();
+            if (!seen.has(key)) {
+                seen.add(key);
+                unique.push(line);
+            }
+        }
+
+        let result = unique;
+        if (sortOutput.checked) {
+            result = unique.sort((a, b) => {
+                if (caseSensitive.checked) {
+                    return a.localeCompare(b);
+                }
+                return a.toLowerCase().localeCompare(b.toLowerCase());
+            });
+        }
+
+        output.value = result.join('\n');
+        removedCount.textContent = originalCount - result.length;
+        remainingCount.textContent = result.length;
+
+        stats.style.display = 'flex';
+        outputSection.style.display = 'block';
+    });
+
+    copyBtn.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(output.value);
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+    });
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .remover {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 600px;
+        margin: 0 auto;
+        text-align: left;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .section-header span {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .count {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71 !important;
+    }
+
+    .input-section,
+    .output-section {
+        margin-bottom: 20px;
+    }
+
+    textarea {
+        width: 100%;
+        height: 150px;
+        padding: 15px;
+        font-size: 13px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        line-height: 1.5;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 10px;
+        color: #fff;
+        outline: none;
+        resize: vertical;
+    }
+
+    textarea:focus {
+        border-color: #444;
+    }
+
+    textarea::placeholder {
+        color: #555;
+    }
+
+    #output {
+        color: #2ecc71;
+    }
+
+    .options {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        background: #252525;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+    }
+
+    .checkbox-label input {
+        width: 18px;
+        height: 18px;
+        accent-color: #2ecc71;
+    }
+
+    .checkbox-label span {
+        font-size: 12px;
+        color: #888;
+    }
+
+    .actions {
+        margin-bottom: 20px;
+    }
+
+    .action-btn {
+        width: 100%;
+        padding: 14px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #fff;
+        border: none;
+        border-radius: 10px;
+        color: #0f0f0f;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: opacity 0.2s ease;
+    }
+
+    .action-btn:hover {
+        opacity: 0.9;
+    }
+
+    .stats {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        margin-bottom: 20px;
+        padding: 20px;
+        background: rgba(46, 204, 113, 0.1);
+        border-radius: 10px;
+    }
+
+    .stat {
+        text-align: center;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 2rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+    }
+
+    .stat-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #888;
+    }
+
+    .copy-btn {
+        padding: 6px 12px;
+        font-size: 10px;
+        font-weight: 500;
+        background: #333;
+        border: none;
+        border-radius: 4px;
+        color: #888;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

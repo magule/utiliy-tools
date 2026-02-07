@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Breathing Exercise</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Breathing Exercise</h1>
+
+    <div class="exercise">
+        <div class="pattern-select">
+            <button class="pattern-btn active" data-pattern="relax">Relaxing</button>
+            <button class="pattern-btn" data-pattern="energize">Energizing</button>
+            <button class="pattern-btn" data-pattern="box">Box</button>
+        </div>
+
+        <div class="breathing-circle">
+            <div class="circle" id="circle">
+                <div class="circle-text">
+                    <span class="instruction" id="instruction">Ready</span>
+                    <span class="timer" id="timer"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="pattern-info" id="patternInfo">
+            <div class="pattern-name" id="patternName">4-7-8 Relaxing Breath</div>
+            <div class="pattern-desc" id="patternDesc">Inhale 4s → Hold 7s → Exhale 8s</div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" id="startBtn">Start</button>
+        </div>
+
+        <div class="cycles">
+            <span id="cycleCount">0</span> cycles completed
+        </div>
+
+        <div class="duration-select">
+            <span>Duration:</span>
+            <button class="duration-btn" data-duration="1">1 min</button>
+            <button class="duration-btn active" data-duration="3">3 min</button>
+            <button class="duration-btn" data-duration="5">5 min</button>
+        </div>
+    </div>
+
+<script>
+    const patterns = {
+        relax: {
+            name: '4-7-8 Relaxing Breath',
+            desc: 'Inhale 4s → Hold 7s → Exhale 8s',
+            inhale: 4,
+            hold1: 7,
+            exhale: 8,
+            hold2: 0
+        },
+        energize: {
+            name: 'Energizing Breath',
+            desc: 'Inhale 4s → Exhale 4s (quick cycles)',
+            inhale: 4,
+            hold1: 0,
+            exhale: 4,
+            hold2: 0
+        },
+        box: {
+            name: 'Box Breathing',
+            desc: 'Inhale 4s → Hold 4s → Exhale 4s → Hold 4s',
+            inhale: 4,
+            hold1: 4,
+            exhale: 4,
+            hold2: 4
+        }
+    };
+
+    let currentPattern = 'relax';
+    let duration = 3;
+    let isRunning = false;
+    let cycleCount = 0;
+    let timeoutId = null;
+    let startTime = null;
+
+    const circle = document.getElementById('circle');
+    const instruction = document.getElementById('instruction');
+    const timer = document.getElementById('timer');
+    const patternName = document.getElementById('patternName');
+    const patternDesc = document.getElementById('patternDesc');
+    const cycleCountEl = document.getElementById('cycleCount');
+    const startBtn = document.getElementById('startBtn');
+    const patternBtns = document.querySelectorAll('.pattern-btn');
+    const durationBtns = document.querySelectorAll('.duration-btn');
+
+    function updatePatternInfo() {
+        const pattern = patterns[currentPattern];
+        patternName.textContent = pattern.name;
+        patternDesc.textContent = pattern.desc;
+    }
+
+    function setCircleState(state, seconds) {
+        circle.className = 'circle ' + state;
+        instruction.textContent = state === 'hold1' || state === 'hold2' ? 'Hold' :
+                                  state.charAt(0).toUpperCase() + state.slice(1);
+    }
+
+    function runCycle() {
+        const pattern = patterns[currentPattern];
+        const phases = [];
+
+        if (pattern.inhale > 0) phases.push({ name: 'inhale', duration: pattern.inhale });
+        if (pattern.hold1 > 0) phases.push({ name: 'hold1', duration: pattern.hold1 });
+        if (pattern.exhale > 0) phases.push({ name: 'exhale', duration: pattern.exhale });
+        if (pattern.hold2 > 0) phases.push({ name: 'hold2', duration: pattern.hold2 });
+
+        let phaseIndex = 0;
+        let secondsInPhase = 0;
+
+        function tick() {
+            if (!isRunning) return;
+
+            // Check if duration is exceeded
+            const elapsed = (Date.now() - startTime) / 1000;
+            if (elapsed >= duration * 60) {
+                stop();
+                return;
+            }
+
+            const phase = phases[phaseIndex];
+            secondsInPhase++;
+
+            setCircleState(phase.name, phase.duration - secondsInPhase + 1);
+            timer.textContent = phase.duration - secondsInPhase + 1;
+
+            if (secondsInPhase >= phase.duration) {
+                phaseIndex++;
+                secondsInPhase = 0;
+
+                if (phaseIndex >= phases.length) {
+                    phaseIndex = 0;
+                    cycleCount++;
+                    cycleCountEl.textContent = cycleCount;
+                }
+            }
+
+            timeoutId = setTimeout(tick, 1000);
+        }
+
+        // Start first phase immediately
+        setCircleState(phases[0].name, phases[0].duration);
+        timer.textContent = phases[0].duration;
+        timeoutId = setTimeout(tick, 1000);
+    }
+
+    function start() {
+        if (isRunning) {
+            stop();
+            return;
+        }
+
+        isRunning = true;
+        cycleCount = 0;
+        cycleCountEl.textContent = 0;
+        startTime = Date.now();
+        startBtn.textContent = 'Stop';
+        startBtn.classList.add('active');
+
+        runCycle();
+    }
+
+    function stop() {
+        isRunning = false;
+        clearTimeout(timeoutId);
+        startBtn.textContent = 'Start';
+        startBtn.classList.remove('active');
+        circle.className = 'circle';
+        instruction.textContent = 'Ready';
+        timer.textContent = '';
+    }
+
+    patternBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (isRunning) stop();
+            patternBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentPattern = btn.dataset.pattern;
+            updatePatternInfo();
+        });
+    });
+
+    durationBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            durationBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            duration = parseInt(btn.dataset.duration);
+        });
+    });
+
+    startBtn.addEventListener('click', start);
+
+    updatePatternInfo();
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .exercise {
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    .pattern-select {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 40px;
+    }
+
+    .pattern-btn {
+        flex: 1;
+        padding: 12px 10px;
+        font-size: 11px;
+        font-weight: 500;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        color: #666;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.2s ease;
+    }
+
+    .pattern-btn:hover {
+        border-color: #333;
+        color: #888;
+    }
+
+    .pattern-btn.active {
+        background: #252525;
+        border-color: #333;
+        color: #fff;
+    }
+
+    .breathing-circle {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 30px;
+    }
+
+    .circle {
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        background: #1a1a1a;
+        border: 3px solid #333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 1s ease;
+    }
+
+    .circle.inhale {
+        transform: scale(1.2);
+        border-color: #3498db;
+        background: rgba(52, 152, 219, 0.1);
+    }
+
+    .circle.exhale {
+        transform: scale(0.9);
+        border-color: #9b59b6;
+        background: rgba(155, 89, 182, 0.1);
+    }
+
+    .circle.hold1,
+    .circle.hold2 {
+        border-color: #2ecc71;
+        background: rgba(46, 204, 113, 0.1);
+    }
+
+    .circle-text {
+        text-align: center;
+    }
+
+    .instruction {
+        display: block;
+        font-size: 1.25rem;
+        font-weight: 300;
+        color: #fff;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 5px;
+    }
+
+    .timer {
+        font-size: 2rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #888;
+    }
+
+    .pattern-info {
+        margin-bottom: 30px;
+    }
+
+    .pattern-name {
+        font-size: 14px;
+        font-weight: 500;
+        color: #fff;
+        margin-bottom: 5px;
+    }
+
+    .pattern-desc {
+        font-size: 12px;
+        color: #555;
+    }
+
+    .controls {
+        margin-bottom: 20px;
+    }
+
+    .control-btn {
+        padding: 16px 60px;
+        font-size: 14px;
+        font-weight: 500;
+        background: #fff;
+        border: none;
+        border-radius: 12px;
+        color: #0f0f0f;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        transition: all 0.2s ease;
+    }
+
+    .control-btn:hover {
+        opacity: 0.9;
+    }
+
+    .control-btn.active {
+        background: #e74c3c;
+        color: #fff;
+    }
+
+    .cycles {
+        font-size: 13px;
+        color: #555;
+        margin-bottom: 30px;
+    }
+
+    .cycles span {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+    }
+
+    .duration-select {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .duration-select > span {
+        font-size: 12px;
+        color: #555;
+    }
+
+    .duration-btn {
+        padding: 8px 15px;
+        font-size: 11px;
+        font-weight: 500;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 6px;
+        color: #555;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .duration-btn:hover {
+        border-color: #333;
+        color: #888;
+    }
+
+    .duration-btn.active {
+        background: #252525;
+        border-color: #333;
+        color: #fff;
+    }
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

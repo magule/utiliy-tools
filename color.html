@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Color Picker</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Color Picker</h1>
+
+    <div class="picker">
+        <div class="color-preview" id="colorPreview">
+            <input type="color" id="colorInput" value="#2ecc71">
+        </div>
+
+        <div class="color-values">
+            <div class="value-row">
+                <label>HEX</label>
+                <div class="value-input">
+                    <input type="text" id="hexValue" value="#2ecc71">
+                    <button class="copy-btn" data-target="hexValue">Copy</button>
+                </div>
+            </div>
+
+            <div class="value-row">
+                <label>RGB</label>
+                <div class="value-input">
+                    <input type="text" id="rgbValue" value="rgb(46, 204, 113)">
+                    <button class="copy-btn" data-target="rgbValue">Copy</button>
+                </div>
+            </div>
+
+            <div class="value-row">
+                <label>HSL</label>
+                <div class="value-input">
+                    <input type="text" id="hslValue" value="hsl(145, 63%, 49%)">
+                    <button class="copy-btn" data-target="hslValue">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="sliders">
+            <div class="slider-row">
+                <label>R</label>
+                <input type="range" id="rSlider" min="0" max="255" value="46">
+                <span id="rValue">46</span>
+            </div>
+            <div class="slider-row">
+                <label>G</label>
+                <input type="range" id="gSlider" min="0" max="255" value="204">
+                <span id="gValue">204</span>
+            </div>
+            <div class="slider-row">
+                <label>B</label>
+                <input type="range" id="bSlider" min="0" max="255" value="113">
+                <span id="bValue">113</span>
+            </div>
+        </div>
+
+        <div class="presets">
+            <div class="preset" style="background: #e74c3c" data-color="#e74c3c"></div>
+            <div class="preset" style="background: #f39c12" data-color="#f39c12"></div>
+            <div class="preset" style="background: #f1c40f" data-color="#f1c40f"></div>
+            <div class="preset" style="background: #2ecc71" data-color="#2ecc71"></div>
+            <div class="preset" style="background: #3498db" data-color="#3498db"></div>
+            <div class="preset" style="background: #9b59b6" data-color="#9b59b6"></div>
+            <div class="preset" style="background: #1abc9c" data-color="#1abc9c"></div>
+            <div class="preset" style="background: #34495e" data-color="#34495e"></div>
+        </div>
+    </div>
+
+<script>
+    const colorInput = document.getElementById('colorInput');
+    const colorPreview = document.getElementById('colorPreview');
+    const hexValue = document.getElementById('hexValue');
+    const rgbValue = document.getElementById('rgbValue');
+    const hslValue = document.getElementById('hslValue');
+    const rSlider = document.getElementById('rSlider');
+    const gSlider = document.getElementById('gSlider');
+    const bSlider = document.getElementById('bSlider');
+    const rValueEl = document.getElementById('rValue');
+    const gValueEl = document.getElementById('gValue');
+    const bValueEl = document.getElementById('bValue');
+    const presets = document.querySelectorAll('.preset');
+    const copyBtns = document.querySelectorAll('.copy-btn');
+
+    function hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    }
+
+    function rgbToHex(r, g, b) {
+        return '#' + [r, g, b].map(x => {
+            const hex = x.toString(16);
+            return hex.length === 1 ? '0' + hex : hex;
+        }).join('');
+    }
+
+    function rgbToHsl(r, g, b) {
+        r /= 255;
+        g /= 255;
+        b /= 255;
+
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+
+        if (max === min) {
+            h = s = 0;
+        } else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                case g: h = ((b - r) / d + 2) / 6; break;
+                case b: h = ((r - g) / d + 4) / 6; break;
+            }
+        }
+
+        return {
+            h: Math.round(h * 360),
+            s: Math.round(s * 100),
+            l: Math.round(l * 100)
+        };
+    }
+
+    function updateColor(hex) {
+        const rgb = hexToRgb(hex);
+        if (!rgb) return;
+
+        const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+
+        colorInput.value = hex;
+        colorPreview.style.background = hex;
+        hexValue.value = hex;
+        rgbValue.value = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+        hslValue.value = `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
+
+        rSlider.value = rgb.r;
+        gSlider.value = rgb.g;
+        bSlider.value = rgb.b;
+        rValueEl.textContent = rgb.r;
+        gValueEl.textContent = rgb.g;
+        bValueEl.textContent = rgb.b;
+    }
+
+    function updateFromSliders() {
+        const r = parseInt(rSlider.value);
+        const g = parseInt(gSlider.value);
+        const b = parseInt(bSlider.value);
+        const hex = rgbToHex(r, g, b);
+        updateColor(hex);
+    }
+
+    colorInput.addEventListener('input', (e) => updateColor(e.target.value));
+
+    hexValue.addEventListener('change', (e) => {
+        let hex = e.target.value;
+        if (!hex.startsWith('#')) hex = '#' + hex;
+        if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+            updateColor(hex);
+        }
+    });
+
+    [rSlider, gSlider, bSlider].forEach(slider => {
+        slider.addEventListener('input', () => {
+            rValueEl.textContent = rSlider.value;
+            gValueEl.textContent = gSlider.value;
+            bValueEl.textContent = bSlider.value;
+            updateFromSliders();
+        });
+    });
+
+    presets.forEach(preset => {
+        preset.addEventListener('click', () => {
+            updateColor(preset.dataset.color);
+        });
+    });
+
+    copyBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const target = document.getElementById(btn.dataset.target);
+            await navigator.clipboard.writeText(target.value);
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = 'Copy', 1500);
+        });
+    });
+
+    // Initialize
+    updateColor('#2ecc71');
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .picker {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    .color-preview {
+        height: 120px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+        background: #2ecc71;
+        position: relative;
+        cursor: pointer;
+        overflow: hidden;
+    }
+
+    .color-preview input[type="color"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .color-values {
+        margin-bottom: 25px;
+    }
+
+    .value-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .value-row label {
+        width: 40px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+        text-align: left;
+    }
+
+    .value-input {
+        flex: 1;
+        display: flex;
+        gap: 8px;
+    }
+
+    .value-input input {
+        flex: 1;
+        padding: 10px 12px;
+        font-size: 13px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 8px;
+        color: #fff;
+        outline: none;
+    }
+
+    .value-input input:focus {
+        border-color: #444;
+    }
+
+    .copy-btn {
+        padding: 10px 15px;
+        font-size: 10px;
+        font-weight: 500;
+        background: #333;
+        border: none;
+        border-radius: 8px;
+        color: #888;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.2s ease;
+    }
+
+    .copy-btn:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .sliders {
+        margin-bottom: 25px;
+        padding: 20px;
+        background: #252525;
+        border-radius: 12px;
+    }
+
+    .slider-row {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 12px;
+    }
+
+    .slider-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .slider-row label {
+        width: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #888;
+    }
+
+    .slider-row input[type="range"] {
+        flex: 1;
+        height: 6px;
+        background: #333;
+        border-radius: 3px;
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
+    .slider-row input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        background: #fff;
+        border-radius: 50%;
+        cursor: pointer;
+    }
+
+    .slider-row span {
+        width: 35px;
+        font-size: 12px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #888;
+        text-align: right;
+    }
+
+    .presets {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .preset {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+
+    .preset:hover {
+        transform: scale(1.1);
+    }
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

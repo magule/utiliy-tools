@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quick Notes</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Quick Notes</h1>
+
+    <div class="notes-app">
+        <div class="toolbar">
+            <button class="tool-btn" id="newNote">+ New</button>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search notes...">
+            </div>
+        </div>
+
+        <div class="notes-container">
+            <div class="notes-list" id="notesList"></div>
+            <div class="note-editor" id="noteEditor">
+                <input type="text" class="note-title" id="noteTitle" placeholder="Note title...">
+                <textarea class="note-content" id="noteContent" placeholder="Start writing..."></textarea>
+                <div class="note-footer">
+                    <span class="note-date" id="noteDate"></span>
+                    <button class="delete-btn" id="deleteNote">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let notes = JSON.parse(localStorage.getItem('quickNotes')) || [];
+    let currentNoteId = null;
+
+    const notesList = document.getElementById('notesList');
+    const noteEditor = document.getElementById('noteEditor');
+    const noteTitle = document.getElementById('noteTitle');
+    const noteContent = document.getElementById('noteContent');
+    const noteDate = document.getElementById('noteDate');
+    const newNoteBtn = document.getElementById('newNote');
+    const deleteNoteBtn = document.getElementById('deleteNote');
+    const searchInput = document.getElementById('searchInput');
+
+    function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    function saveNotes() {
+        localStorage.setItem('quickNotes', JSON.stringify(notes));
+    }
+
+    function formatDate(timestamp) {
+        const date = new Date(timestamp);
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function getPreview(content) {
+        return content.substring(0, 50).replace(/\n/g, ' ') + (content.length > 50 ? '...' : '');
+    }
+
+    function renderNotesList(filter = '') {
+        const filtered = notes.filter(note => {
+            const search = filter.toLowerCase();
+            return note.title.toLowerCase().includes(search) ||
+                   note.content.toLowerCase().includes(search);
+        });
+
+        notesList.innerHTML = '';
+
+        if (filtered.length === 0) {
+            notesList.innerHTML = `<div class="empty-state">${filter ? 'No matching notes' : 'No notes yet'}</div>`;
+            return;
+        }
+
+        filtered.sort((a, b) => b.updatedAt - a.updatedAt);
+
+        filtered.forEach(note => {
+            const div = document.createElement('div');
+            div.className = `note-item ${note.id === currentNoteId ? 'active' : ''}`;
+            div.dataset.id = note.id;
+            div.innerHTML = `
+                <div class="note-item-title">${note.title || 'Untitled'}</div>
+                <div class="note-item-preview">${getPreview(note.content) || 'No content'}</div>
+                <div class="note-item-date">${formatDate(note.updatedAt)}</div>
+            `;
+            div.addEventListener('click', () => selectNote(note.id));
+            notesList.appendChild(div);
+        });
+    }
+
+    function selectNote(id) {
+        currentNoteId = id;
+        const note = notes.find(n => n.id === id);
+
+        if (note) {
+            noteTitle.value = note.title;
+            noteContent.value = note.content;
+            noteDate.textContent = 'Last edited ' + formatDate(note.updatedAt);
+            noteEditor.classList.add('active');
+        }
+
+        renderNotesList(searchInput.value);
+    }
+
+    function createNote() {
+        const note = {
+            id: generateId(),
+            title: '',
+            content: '',
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+
+        notes.unshift(note);
+        saveNotes();
+        selectNote(note.id);
+        noteTitle.focus();
+    }
+
+    function updateCurrentNote() {
+        if (!currentNoteId) return;
+
+        const note = notes.find(n => n.id === currentNoteId);
+        if (note) {
+            note.title = noteTitle.value;
+            note.content = noteContent.value;
+            note.updatedAt = Date.now();
+            saveNotes();
+            renderNotesList(searchInput.value);
+        }
+    }
+
+    function deleteCurrentNote() {
+        if (!currentNoteId) return;
+
+        notes = notes.filter(n => n.id !== currentNoteId);
+        saveNotes();
+        currentNoteId = null;
+        noteEditor.classList.remove('active');
+        noteTitle.value = '';
+        noteContent.value = '';
+        renderNotesList(searchInput.value);
+
+        if (notes.length > 0) {
+            selectNote(notes[0].id);
+        }
+    }
+
+    newNoteBtn.addEventListener('click', createNote);
+    deleteNoteBtn.addEventListener('click', deleteCurrentNote);
+    noteTitle.addEventListener('input', updateCurrentNote);
+    noteContent.addEventListener('input', updateCurrentNote);
+    searchInput.addEventListener('input', (e) => renderNotesList(e.target.value));
+
+    // Initialize
+    renderNotesList();
+    if (notes.length > 0) {
+        selectNote(notes[0].id);
+    }
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .notes-app {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        max-width: 800px;
+        margin: 0 auto;
+        overflow: hidden;
+    }
+
+    .toolbar {
+        display: flex;
+        gap: 10px;
+        padding: 15px;
+        border-bottom: 1px solid #252525;
+    }
+
+    .tool-btn {
+        padding: 10px 20px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #fff;
+        border: none;
+        border-radius: 8px;
+        color: #0f0f0f;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: opacity 0.2s ease;
+    }
+
+    .tool-btn:hover {
+        opacity: 0.9;
+    }
+
+    .search-box {
+        flex: 1;
+    }
+
+    .search-box input {
+        width: 100%;
+        padding: 10px 15px;
+        font-size: 13px;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 8px;
+        color: #fff;
+        outline: none;
+    }
+
+    .search-box input:focus {
+        border-color: #444;
+    }
+
+    .search-box input::placeholder {
+        color: #555;
+    }
+
+    .notes-container {
+        display: flex;
+        min-height: 400px;
+    }
+
+    .notes-list {
+        width: 250px;
+        border-right: 1px solid #252525;
+        overflow-y: auto;
+        max-height: 500px;
+    }
+
+    .empty-state {
+        padding: 40px 20px;
+        color: #444;
+        font-size: 13px;
+    }
+
+    .note-item {
+        padding: 15px;
+        border-bottom: 1px solid #252525;
+        cursor: pointer;
+        text-align: left;
+        transition: background 0.2s ease;
+    }
+
+    .note-item:hover {
+        background: #222;
+    }
+
+    .note-item.active {
+        background: #252525;
+    }
+
+    .note-item-title {
+        font-size: 13px;
+        font-weight: 500;
+        color: #ddd;
+        margin-bottom: 5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .note-item-preview {
+        font-size: 11px;
+        color: #555;
+        margin-bottom: 5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .note-item-date {
+        font-size: 10px;
+        color: #444;
+    }
+
+    .note-editor {
+        flex: 1;
+        display: none;
+        flex-direction: column;
+        padding: 20px;
+        text-align: left;
+    }
+
+    .note-editor.active {
+        display: flex;
+    }
+
+    .note-title {
+        font-size: 1.25rem;
+        font-weight: 500;
+        background: transparent;
+        border: none;
+        color: #fff;
+        outline: none;
+        margin-bottom: 15px;
+        padding: 5px 0;
+    }
+
+    .note-title::placeholder {
+        color: #444;
+    }
+
+    .note-content {
+        flex: 1;
+        font-size: 14px;
+        line-height: 1.6;
+        background: transparent;
+        border: none;
+        color: #ccc;
+        outline: none;
+        resize: none;
+        font-family: inherit;
+    }
+
+    .note-content::placeholder {
+        color: #444;
+    }
+
+    .note-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #252525;
+    }
+
+    .note-date {
+        font-size: 11px;
+        color: #444;
+    }
+
+    .delete-btn {
+        padding: 8px 15px;
+        font-size: 11px;
+        font-weight: 500;
+        background: transparent;
+        border: 1px solid #333;
+        border-radius: 6px;
+        color: #666;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.2s ease;
+    }
+
+    .delete-btn:hover {
+        border-color: #e74c3c;
+        color: #e74c3c;
+    }
+
+    @media (max-width: 600px) {
+        .notes-container {
+            flex-direction: column;
+        }
+
+        .notes-list {
+            width: 100%;
+            max-height: 200px;
+            border-right: none;
+            border-bottom: 1px solid #252525;
+        }
+    }
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

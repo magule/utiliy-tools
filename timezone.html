@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Time Zone Converter</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Time Zone Converter</h1>
+
+    <div class="converter">
+        <div class="source-section">
+            <div class="section-header">
+                <span class="section-label">From</span>
+            </div>
+
+            <div class="time-input-row">
+                <input type="time" class="time-input" id="sourceTime" value="12:00">
+            </div>
+
+            <div class="date-input-row">
+                <input type="date" class="date-input" id="sourceDate">
+            </div>
+
+            <div class="timezone-select-row">
+                <select class="timezone-select" id="sourceTimezone">
+                </select>
+            </div>
+        </div>
+
+        <div class="arrow">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+        </div>
+
+        <div class="result-section">
+            <div class="section-header">
+                <span class="section-label">To</span>
+            </div>
+
+            <div class="result-time" id="resultTime">12:00</div>
+            <div class="result-date" id="resultDate">Same day</div>
+
+            <div class="timezone-select-row">
+                <select class="timezone-select" id="targetTimezone">
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="quick-zones">
+        <h2>Quick Compare</h2>
+        <div id="quickZones"></div>
+    </div>
+
+<script>
+    const timezones = [
+        { name: 'Local Time', zone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        { name: 'New York', zone: 'America/New_York' },
+        { name: 'Los Angeles', zone: 'America/Los_Angeles' },
+        { name: 'Chicago', zone: 'America/Chicago' },
+        { name: 'London', zone: 'Europe/London' },
+        { name: 'Paris', zone: 'Europe/Paris' },
+        { name: 'Berlin', zone: 'Europe/Berlin' },
+        { name: 'Moscow', zone: 'Europe/Moscow' },
+        { name: 'Dubai', zone: 'Asia/Dubai' },
+        { name: 'Mumbai', zone: 'Asia/Kolkata' },
+        { name: 'Singapore', zone: 'Asia/Singapore' },
+        { name: 'Hong Kong', zone: 'Asia/Hong_Kong' },
+        { name: 'Tokyo', zone: 'Asia/Tokyo' },
+        { name: 'Sydney', zone: 'Australia/Sydney' },
+        { name: 'Auckland', zone: 'Pacific/Auckland' },
+        { name: 'UTC', zone: 'UTC' }
+    ];
+
+    const quickCompareZones = [
+        'America/New_York',
+        'Europe/London',
+        'Europe/Paris',
+        'Asia/Tokyo',
+        'Asia/Singapore',
+        'Australia/Sydney'
+    ];
+
+    const sourceTimeInput = document.getElementById('sourceTime');
+    const sourceDateInput = document.getElementById('sourceDate');
+    const sourceTimezoneSelect = document.getElementById('sourceTimezone');
+    const targetTimezoneSelect = document.getElementById('targetTimezone');
+    const resultTime = document.getElementById('resultTime');
+    const resultDate = document.getElementById('resultDate');
+    const quickZonesContainer = document.getElementById('quickZones');
+
+    // Populate timezone selects
+    function populateTimezones() {
+        timezones.forEach(tz => {
+            const option1 = document.createElement('option');
+            option1.value = tz.zone;
+            option1.textContent = tz.name;
+            sourceTimezoneSelect.appendChild(option1);
+
+            const option2 = document.createElement('option');
+            option2.value = tz.zone;
+            option2.textContent = tz.name;
+            targetTimezoneSelect.appendChild(option2);
+        });
+
+        // Set defaults
+        sourceTimezoneSelect.value = timezones[0].zone; // Local
+        targetTimezoneSelect.value = 'America/New_York';
+    }
+
+    // Set today's date as default
+    function setDefaultDate() {
+        const today = new Date();
+        const dateStr = today.toISOString().split('T')[0];
+        sourceDateInput.value = dateStr;
+    }
+
+    function convert() {
+        const timeStr = sourceTimeInput.value;
+        const dateStr = sourceDateInput.value;
+        const sourceZone = sourceTimezoneSelect.value;
+        const targetZone = targetTimezoneSelect.value;
+
+        if (!timeStr || !dateStr) return;
+
+        // Create date in source timezone
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        const [year, month, day] = dateStr.split('-').map(Number);
+
+        // Create a date string that we can parse
+        const sourceDate = new Date(`${dateStr}T${timeStr}:00`);
+
+        // Get the offset for source timezone
+        const sourceFormatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: sourceZone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+
+        const targetFormatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: targetZone,
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+
+        const targetDateFormatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: targetZone,
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+
+        const sourceDateFormatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: sourceZone,
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+
+        // Calculate the actual UTC time from the source
+        const localDate = new Date(`${dateStr}T${timeStr}:00`);
+
+        // Get local timezone offset
+        const localOffset = localDate.getTimezoneOffset() * 60000;
+
+        // Get source timezone offset by comparing formatted dates
+        const utcDate = new Date(localDate.getTime() + localOffset);
+
+        // Create a reference date in source timezone
+        const sourceRef = new Date(utcDate.toLocaleString('en-US', { timeZone: sourceZone }));
+        const sourceOffset = (sourceRef - utcDate);
+
+        // Adjust to get true UTC
+        const trueUtc = new Date(localDate.getTime() + localOffset - sourceOffset);
+
+        // Now format for target timezone
+        resultTime.textContent = targetFormatter.format(trueUtc);
+
+        const sourceDateStr = sourceDateFormatter.format(trueUtc);
+        const targetDateStr = targetDateFormatter.format(trueUtc);
+
+        if (sourceDateStr === targetDateStr) {
+            resultDate.textContent = 'Same day';
+        } else {
+            resultDate.textContent = targetDateStr;
+        }
+
+        // Update quick compare
+        updateQuickCompare(trueUtc);
+    }
+
+    function updateQuickCompare(utcDate) {
+        quickZonesContainer.innerHTML = '';
+
+        quickCompareZones.forEach(zone => {
+            const tz = timezones.find(t => t.zone === zone);
+            if (!tz) return;
+
+            const timeFormatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: zone,
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+
+            const dateFormatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: zone,
+                month: 'short',
+                day: 'numeric'
+            });
+
+            const div = document.createElement('div');
+            div.className = 'quick-zone';
+            div.innerHTML = `
+                <span class="quick-zone-name">${tz.name}</span>
+                <span class="quick-zone-time">${timeFormatter.format(utcDate)}</span>
+                <span class="quick-zone-date">${dateFormatter.format(utcDate)}</span>
+            `;
+            quickZonesContainer.appendChild(div);
+        });
+    }
+
+    // Event listeners
+    sourceTimeInput.addEventListener('change', convert);
+    sourceDateInput.addEventListener('change', convert);
+    sourceTimezoneSelect.addEventListener('change', convert);
+    targetTimezoneSelect.addEventListener('change', convert);
+
+    // Initialize
+    populateTimezones();
+    setDefaultDate();
+    convert();
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    h2 {
+        font-size: 12px;
+        font-weight: 400;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: #555;
+        margin-bottom: 20px;
+    }
+
+    .converter {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 30px;
+        flex-wrap: wrap;
+        margin-bottom: 50px;
+    }
+
+    .source-section,
+    .result-section {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        min-width: 280px;
+    }
+
+    .section-header {
+        margin-bottom: 20px;
+    }
+
+    .section-label {
+        font-weight: 400;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: #666;
+    }
+
+    .time-input-row,
+    .date-input-row,
+    .timezone-select-row {
+        margin-bottom: 15px;
+    }
+
+    .time-input {
+        font-weight: 300;
+        font-size: 3rem;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        letter-spacing: 2px;
+        color: #fff;
+        background: transparent;
+        border: none;
+        text-align: center;
+        outline: none;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 8px;
+        transition: background 0.2s ease;
+        width: 100%;
+    }
+
+    .time-input:hover,
+    .time-input:focus {
+        background: #252525;
+    }
+
+    .time-input::-webkit-calendar-picker-indicator {
+        display: none;
+    }
+
+    .date-input {
+        font-size: 14px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #888;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 10px 15px;
+        outline: none;
+        cursor: pointer;
+        transition: border-color 0.2s ease;
+    }
+
+    .date-input:hover,
+    .date-input:focus {
+        border-color: #555;
+    }
+
+    .date-input::-webkit-calendar-picker-indicator {
+        filter: invert(0.5);
+        cursor: pointer;
+    }
+
+    .timezone-select {
+        font-weight: 400;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: #666;
+        background: transparent;
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 10px 15px;
+        outline: none;
+        cursor: pointer;
+        transition: border-color 0.2s ease, color 0.2s ease;
+        width: 100%;
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+    }
+
+    .timezone-select:hover,
+    .timezone-select:focus {
+        border-color: #555;
+        color: #888;
+    }
+
+    .timezone-select option {
+        background: #1a1a1a;
+        color: #aaa;
+    }
+
+    .arrow {
+        color: #444;
+    }
+
+    .result-time {
+        font-weight: 300;
+        font-size: 3rem;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        letter-spacing: 2px;
+        color: #2ecc71;
+        margin: 20px 0 10px;
+    }
+
+    .result-date {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 20px;
+    }
+
+    .quick-zones {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    #quickZones {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+    }
+
+    .quick-zone {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .quick-zone-name {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .quick-zone-time {
+        font-size: 1.5rem;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #fff;
+    }
+
+    .quick-zone-date {
+        font-size: 12px;
+        color: #444;
+    }
+
+    @media (max-width: 700px) {
+        .converter {
+            flex-direction: column;
+        }
+
+        .arrow {
+            transform: rotate(90deg);
+        }
+    }
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

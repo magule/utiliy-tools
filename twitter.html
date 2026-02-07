@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Twitter/X Character Counter</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Twitter/X Counter</h1>
+
+    <div class="counter">
+        <div class="input-section">
+            <textarea id="input" placeholder="What's happening?"></textarea>
+            <div class="char-limit">
+                <div class="char-ring" id="charRing">
+                    <svg viewBox="0 0 36 36">
+                        <circle class="ring-bg" cx="18" cy="18" r="16"/>
+                        <circle class="ring-fill" id="ringFill" cx="18" cy="18" r="16"/>
+                    </svg>
+                    <span id="charRemaining">280</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-value" id="charCount">0</span>
+                <span class="stat-label">Characters</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="wordCount">0</span>
+                <span class="stat-label">Words</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="tweetCount">1</span>
+                <span class="stat-label">Tweets</span>
+            </div>
+        </div>
+
+        <div class="warnings" id="warnings"></div>
+
+        <div class="preview-section">
+            <div class="section-header">
+                <span>Tweet Preview</span>
+            </div>
+            <div class="tweet-preview" id="tweetPreview">
+                <div class="tweet-header">
+                    <div class="tweet-avatar"></div>
+                    <div class="tweet-user">
+                        <span class="tweet-name">Your Name</span>
+                        <span class="tweet-handle">@yourhandle</span>
+                    </div>
+                </div>
+                <div class="tweet-content" id="tweetContent"></div>
+                <div class="tweet-footer">
+                    <span>Just now</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="thread-preview" id="threadPreview" style="display: none;">
+            <div class="section-header">
+                <span>Thread Preview</span>
+            </div>
+            <div id="threadContent"></div>
+        </div>
+    </div>
+
+<script>
+    const input = document.getElementById('input');
+    const charCount = document.getElementById('charCount');
+    const wordCount = document.getElementById('wordCount');
+    const tweetCount = document.getElementById('tweetCount');
+    const charRemaining = document.getElementById('charRemaining');
+    const ringFill = document.getElementById('ringFill');
+    const charRing = document.getElementById('charRing');
+    const warnings = document.getElementById('warnings');
+    const tweetContent = document.getElementById('tweetContent');
+    const tweetPreview = document.getElementById('tweetPreview');
+    const threadPreview = document.getElementById('threadPreview');
+    const threadContent = document.getElementById('threadContent');
+
+    const MAX_CHARS = 280;
+    const circumference = 2 * Math.PI * 16;
+    ringFill.style.strokeDasharray = circumference;
+
+    function countTwitterLength(text) {
+        // URLs count as 23 characters
+        const urlRegex = /https?:\/\/\S+/g;
+        let length = text.length;
+        const urls = text.match(urlRegex) || [];
+
+        urls.forEach(url => {
+            length = length - url.length + 23;
+        });
+
+        return length;
+    }
+
+    function highlightUrls(text) {
+        return text.replace(/(https?:\/\/\S+)/g, '<span class="url">$1</span>');
+    }
+
+    function highlightMentions(text) {
+        return text.replace(/(@\w+)/g, '<span class="mention">$1</span>');
+    }
+
+    function highlightHashtags(text) {
+        return text.replace(/(#\w+)/g, '<span class="hashtag">$1</span>');
+    }
+
+    function formatTweet(text) {
+        let formatted = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        formatted = highlightUrls(formatted);
+        formatted = highlightMentions(formatted);
+        formatted = highlightHashtags(formatted);
+        formatted = formatted.replace(/\n/g, '<br>');
+        return formatted;
+    }
+
+    function splitIntoTweets(text, maxLength = MAX_CHARS) {
+        if (countTwitterLength(text) <= maxLength) {
+            return [text];
+        }
+
+        const tweets = [];
+        const words = text.split(' ');
+        let currentTweet = '';
+
+        for (const word of words) {
+            const testTweet = currentTweet ? currentTweet + ' ' + word : word;
+            const numbering = tweets.length > 0 || countTwitterLength(text) > maxLength
+                ? ` (${tweets.length + 1}/?)` : '';
+
+            if (countTwitterLength(testTweet + numbering) <= maxLength - 10) {
+                currentTweet = testTweet;
+            } else {
+                if (currentTweet) tweets.push(currentTweet);
+                currentTweet = word;
+            }
+        }
+
+        if (currentTweet) tweets.push(currentTweet);
+
+        // Add numbering
+        return tweets.map((tweet, i) => `${tweet} (${i + 1}/${tweets.length})`);
+    }
+
+    function update() {
+        const text = input.value;
+        const length = countTwitterLength(text);
+        const remaining = MAX_CHARS - length;
+        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+
+        charCount.textContent = length;
+        wordCount.textContent = words;
+        charRemaining.textContent = Math.abs(remaining);
+
+        // Update ring
+        const progress = Math.min(length / MAX_CHARS, 1);
+        const offset = circumference - (progress * circumference);
+        ringFill.style.strokeDashoffset = offset;
+
+        // Update colors
+        if (remaining < 0) {
+            charRing.classList.add('over');
+            charRing.classList.remove('warning');
+            charRemaining.textContent = remaining;
+        } else if (remaining <= 20) {
+            charRing.classList.add('warning');
+            charRing.classList.remove('over');
+        } else {
+            charRing.classList.remove('warning', 'over');
+        }
+
+        // Warnings
+        const warningList = [];
+        if (remaining < 0) {
+            warningList.push(`${Math.abs(remaining)} characters over limit`);
+        }
+
+        warnings.innerHTML = warningList.map(w =>
+            `<div class="warning-item">${w}</div>`
+        ).join('');
+
+        // Preview
+        if (text.trim()) {
+            tweetContent.innerHTML = formatTweet(text);
+            tweetPreview.style.display = 'block';
+        } else {
+            tweetPreview.style.display = 'block';
+            tweetContent.innerHTML = '<span class="placeholder">Your tweet will appear here</span>';
+        }
+
+        // Thread
+        if (length > MAX_CHARS) {
+            const tweets = splitIntoTweets(text);
+            tweetCount.textContent = tweets.length;
+
+            threadContent.innerHTML = tweets.map((tweet, i) => `
+                <div class="thread-tweet">
+                    <div class="thread-connector"></div>
+                    <div class="tweet-preview mini">
+                        <div class="tweet-header">
+                            <div class="tweet-avatar small"></div>
+                            <div class="tweet-user">
+                                <span class="tweet-name">Your Name</span>
+                            </div>
+                        </div>
+                        <div class="tweet-content">${formatTweet(tweet)}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            threadPreview.style.display = 'block';
+        } else {
+            tweetCount.textContent = '1';
+            threadPreview.style.display = 'none';
+        }
+    }
+
+    input.addEventListener('input', update);
+    update();
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .counter {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 550px;
+        margin: 0 auto;
+        text-align: left;
+    }
+
+    .input-section {
+        position: relative;
+        margin-bottom: 20px;
+    }
+
+    textarea {
+        width: 100%;
+        height: 120px;
+        padding: 15px;
+        padding-right: 60px;
+        font-size: 16px;
+        font-family: inherit;
+        line-height: 1.5;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 12px;
+        color: #fff;
+        outline: none;
+        resize: none;
+    }
+
+    textarea:focus {
+        border-color: #1da1f2;
+    }
+
+    textarea::placeholder {
+        color: #555;
+    }
+
+    .char-limit {
+        position: absolute;
+        bottom: 15px;
+        right: 15px;
+    }
+
+    .char-ring {
+        width: 36px;
+        height: 36px;
+        position: relative;
+    }
+
+    .char-ring svg {
+        transform: rotate(-90deg);
+    }
+
+    .ring-bg {
+        fill: none;
+        stroke: #333;
+        stroke-width: 2;
+    }
+
+    .ring-fill {
+        fill: none;
+        stroke: #1da1f2;
+        stroke-width: 2;
+        transition: stroke-dashoffset 0.2s;
+    }
+
+    .char-ring.warning .ring-fill {
+        stroke: #f1c40f;
+    }
+
+    .char-ring.over .ring-fill {
+        stroke: #e74c3c;
+    }
+
+    .char-ring span {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 10px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #888;
+    }
+
+    .char-ring.warning span {
+        color: #f1c40f;
+    }
+
+    .char-ring.over span {
+        color: #e74c3c;
+    }
+
+    .stats {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        margin-bottom: 20px;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #1da1f2;
+    }
+
+    .stat-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .warnings {
+        margin-bottom: 15px;
+    }
+
+    .warning-item {
+        padding: 10px;
+        background: rgba(231, 76, 60, 0.1);
+        border-radius: 8px;
+        font-size: 12px;
+        color: #e74c3c;
+        margin-bottom: 8px;
+    }
+
+    .section-header {
+        margin-bottom: 10px;
+    }
+
+    .section-header span {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .tweet-preview {
+        background: #252525;
+        border-radius: 12px;
+        padding: 15px;
+    }
+
+    .tweet-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .tweet-avatar {
+        width: 40px;
+        height: 40px;
+        background: #333;
+        border-radius: 50%;
+    }
+
+    .tweet-avatar.small {
+        width: 32px;
+        height: 32px;
+    }
+
+    .tweet-name {
+        display: block;
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .tweet-handle {
+        font-size: 13px;
+        color: #666;
+    }
+
+    .tweet-content {
+        font-size: 15px;
+        line-height: 1.5;
+        margin-bottom: 10px;
+        word-break: break-word;
+    }
+
+    .tweet-content .placeholder {
+        color: #555;
+    }
+
+    .tweet-content .url {
+        color: #1da1f2;
+    }
+
+    .tweet-content .mention {
+        color: #1da1f2;
+    }
+
+    .tweet-content .hashtag {
+        color: #1da1f2;
+    }
+
+    .tweet-footer {
+        font-size: 12px;
+        color: #555;
+    }
+
+    .thread-preview {
+        margin-top: 20px;
+    }
+
+    .thread-tweet {
+        position: relative;
+        padding-left: 25px;
+    }
+
+    .thread-connector {
+        position: absolute;
+        left: 16px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #333;
+    }
+
+    .thread-tweet:last-child .thread-connector {
+        display: none;
+    }
+
+    .tweet-preview.mini {
+        margin-bottom: 10px;
+    }
+
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

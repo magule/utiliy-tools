@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Minifier</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>CSS Minifier</h1>
+
+    <div class="minifier">
+        <div class="input-section">
+            <div class="section-header">
+                <span>Input CSS</span>
+                <span class="size" id="inputSize">0 bytes</span>
+            </div>
+            <textarea id="input" placeholder="Paste your CSS here..."></textarea>
+        </div>
+
+        <div class="actions">
+            <button class="action-btn" id="minifyBtn">Minify</button>
+            <button class="action-btn secondary" id="beautifyBtn">Beautify</button>
+        </div>
+
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stat">
+                <span class="stat-value" id="originalSize">0</span>
+                <span class="stat-label">Original</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="minifiedSize">0</span>
+                <span class="stat-label">Minified</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="savings">0%</span>
+                <span class="stat-label">Saved</span>
+            </div>
+        </div>
+
+        <div class="output-section">
+            <div class="section-header">
+                <span>Output</span>
+                <button class="copy-btn" id="copyBtn">Copy</button>
+            </div>
+            <textarea id="output" readonly></textarea>
+        </div>
+    </div>
+
+<script>
+    const input = document.getElementById('input');
+    const output = document.getElementById('output');
+    const inputSize = document.getElementById('inputSize');
+    const minifyBtn = document.getElementById('minifyBtn');
+    const beautifyBtn = document.getElementById('beautifyBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const stats = document.getElementById('stats');
+    const originalSize = document.getElementById('originalSize');
+    const minifiedSize = document.getElementById('minifiedSize');
+    const savings = document.getElementById('savings');
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        return (bytes / 1024).toFixed(2) + ' KB';
+    }
+
+    input.addEventListener('input', () => {
+        inputSize.textContent = formatSize(new Blob([input.value]).size);
+    });
+
+    function minifyCSS(css) {
+        return css
+            // Remove comments
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            // Remove whitespace around special characters
+            .replace(/\s*([{}:;,>~+])\s*/g, '$1')
+            // Remove last semicolon before closing brace
+            .replace(/;}/g, '}')
+            // Remove newlines and extra spaces
+            .replace(/\s+/g, ' ')
+            // Remove space after colons
+            .replace(/:\s+/g, ':')
+            // Remove leading/trailing whitespace
+            .trim();
+    }
+
+    function beautifyCSS(css) {
+        let result = css;
+        let indent = 0;
+
+        // First minify to normalize
+        result = minifyCSS(result);
+
+        // Add newlines and indentation
+        result = result
+            .replace(/\{/g, ' {\n')
+            .replace(/\}/g, '\n}\n')
+            .replace(/;/g, ';\n')
+            .replace(/,\s*/g, ',\n');
+
+        // Add proper indentation
+        const lines = result.split('\n');
+        result = lines.map(line => {
+            line = line.trim();
+            if (!line) return '';
+
+            if (line.includes('}')) indent--;
+            const indented = '  '.repeat(Math.max(0, indent)) + line;
+            if (line.includes('{')) indent++;
+
+            return indented;
+        }).filter(line => line).join('\n');
+
+        return result;
+    }
+
+    minifyBtn.addEventListener('click', () => {
+        const original = input.value;
+        const minified = minifyCSS(original);
+
+        output.value = minified;
+
+        const origBytes = new Blob([original]).size;
+        const minBytes = new Blob([minified]).size;
+        const savedPercent = origBytes > 0 ? Math.round((1 - minBytes / origBytes) * 100) : 0;
+
+        originalSize.textContent = formatSize(origBytes);
+        minifiedSize.textContent = formatSize(minBytes);
+        savings.textContent = savedPercent + '%';
+
+        stats.style.display = 'flex';
+    });
+
+    beautifyBtn.addEventListener('click', () => {
+        const original = input.value;
+        const beautified = beautifyCSS(original);
+        output.value = beautified;
+        stats.style.display = 'none';
+    });
+
+    copyBtn.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(output.value);
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+    });
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .minifier {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 700px;
+        margin: 0 auto;
+        text-align: left;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .section-header span {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .size {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71 !important;
+    }
+
+    .copy-btn {
+        padding: 5px 12px;
+        font-size: 10px;
+        background: #333;
+        border: none;
+        border-radius: 4px;
+        color: #888;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .input-section,
+    .output-section {
+        margin-bottom: 20px;
+    }
+
+    textarea {
+        width: 100%;
+        height: 180px;
+        padding: 15px;
+        font-size: 12px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        line-height: 1.5;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 10px;
+        color: #fff;
+        outline: none;
+        resize: vertical;
+    }
+
+    textarea:focus {
+        border-color: #444;
+    }
+
+    textarea::placeholder {
+        color: #555;
+    }
+
+    #output {
+        color: #2ecc71;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .action-btn {
+        flex: 1;
+        padding: 14px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #fff;
+        border: none;
+        border-radius: 10px;
+        color: #0f0f0f;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: opacity 0.2s ease;
+    }
+
+    .action-btn:hover {
+        opacity: 0.9;
+    }
+
+    .action-btn.secondary {
+        background: #333;
+        color: #aaa;
+    }
+
+    .action-btn.secondary:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .stats {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        margin-bottom: 20px;
+        padding: 20px;
+        background: rgba(46, 204, 113, 0.1);
+        border-radius: 10px;
+    }
+
+    .stat {
+        text-align: center;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+    }
+
+    .stat-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #888;
+    }
+
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

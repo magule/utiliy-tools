@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Base64 Encoder/Decoder</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Base64 Encoder/Decoder</h1>
+
+    <div class="converter">
+        <div class="mode-tabs">
+            <button class="mode-tab active" data-mode="encode">Encode</button>
+            <button class="mode-tab" data-mode="decode">Decode</button>
+        </div>
+
+        <div class="input-section">
+            <div class="section-header">
+                <span id="inputLabel">Text to Encode</span>
+                <button class="mini-btn" id="pasteBtn">Paste</button>
+            </div>
+            <textarea id="inputText" placeholder="Enter text here..."></textarea>
+        </div>
+
+        <button class="convert-btn" id="convertBtn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <polyline points="19 12 12 19 5 12"></polyline>
+            </svg>
+            Convert
+        </button>
+
+        <div class="output-section">
+            <div class="section-header">
+                <span id="outputLabel">Base64 Output</span>
+                <button class="mini-btn" id="copyBtn">Copy</button>
+            </div>
+            <textarea id="outputText" readonly placeholder="Result will appear here..."></textarea>
+        </div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+<script>
+    let currentMode = 'encode';
+
+    const modeTabs = document.querySelectorAll('.mode-tab');
+    const inputText = document.getElementById('inputText');
+    const outputText = document.getElementById('outputText');
+    const inputLabel = document.getElementById('inputLabel');
+    const outputLabel = document.getElementById('outputLabel');
+    const convertBtn = document.getElementById('convertBtn');
+    const pasteBtn = document.getElementById('pasteBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const status = document.getElementById('status');
+
+    function setStatus(message, type) {
+        status.textContent = message;
+        status.className = 'status ' + type;
+        setTimeout(() => {
+            status.className = 'status';
+            status.textContent = '';
+        }, 3000);
+    }
+
+    function updateLabels() {
+        if (currentMode === 'encode') {
+            inputLabel.textContent = 'Text to Encode';
+            outputLabel.textContent = 'Base64 Output';
+            inputText.placeholder = 'Enter text to encode...';
+        } else {
+            inputLabel.textContent = 'Base64 to Decode';
+            outputLabel.textContent = 'Decoded Text';
+            inputText.placeholder = 'Enter Base64 string to decode...';
+        }
+    }
+
+    function convert() {
+        const input = inputText.value;
+
+        if (!input.trim()) {
+            outputText.value = '';
+            return;
+        }
+
+        try {
+            if (currentMode === 'encode') {
+                // Encode: text to base64
+                const encoded = btoa(unescape(encodeURIComponent(input)));
+                outputText.value = encoded;
+                setStatus('Encoded successfully!', 'success');
+            } else {
+                // Decode: base64 to text
+                const decoded = decodeURIComponent(escape(atob(input)));
+                outputText.value = decoded;
+                setStatus('Decoded successfully!', 'success');
+            }
+        } catch (e) {
+            setStatus('Error: Invalid input', 'error');
+            outputText.value = '';
+        }
+    }
+
+    modeTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            modeTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            currentMode = tab.dataset.mode;
+            updateLabels();
+            inputText.value = '';
+            outputText.value = '';
+        });
+    });
+
+    convertBtn.addEventListener('click', convert);
+    inputText.addEventListener('input', convert);
+
+    pasteBtn.addEventListener('click', async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            inputText.value = text;
+            convert();
+        } catch (e) {
+            setStatus('Could not paste from clipboard', 'error');
+        }
+    });
+
+    copyBtn.addEventListener('click', async () => {
+        if (outputText.value) {
+            await navigator.clipboard.writeText(outputText.value);
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+        }
+    });
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .converter {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+
+    .mode-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 25px;
+    }
+
+    .mode-tab {
+        flex: 1;
+        padding: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 8px;
+        color: #666;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.2s ease;
+    }
+
+    .mode-tab:hover {
+        color: #888;
+    }
+
+    .mode-tab.active {
+        background: #333;
+        border-color: #444;
+        color: #fff;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        text-align: left;
+    }
+
+    .section-header span {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .mini-btn {
+        padding: 5px 12px;
+        font-size: 10px;
+        font-weight: 500;
+        background: #333;
+        border: none;
+        border-radius: 4px;
+        color: #888;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.2s ease;
+    }
+
+    .mini-btn:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .input-section,
+    .output-section {
+        margin-bottom: 20px;
+    }
+
+    textarea {
+        width: 100%;
+        height: 120px;
+        padding: 15px;
+        font-size: 13px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        line-height: 1.5;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 10px;
+        color: #fff;
+        outline: none;
+        resize: vertical;
+    }
+
+    textarea:focus {
+        border-color: #444;
+    }
+
+    textarea::placeholder {
+        color: #555;
+    }
+
+    textarea[readonly] {
+        color: #2ecc71;
+        cursor: default;
+    }
+
+    .convert-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        padding: 14px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #fff;
+        border: none;
+        border-radius: 10px;
+        color: #0f0f0f;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: opacity 0.2s ease;
+        margin-bottom: 20px;
+    }
+
+    .convert-btn:hover {
+        opacity: 0.9;
+    }
+
+    .status {
+        min-height: 20px;
+        font-size: 12px;
+        padding: 8px;
+    }
+
+    .status.success {
+        color: #2ecc71;
+    }
+
+    .status.error {
+        color: #e74c3c;
+    }
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

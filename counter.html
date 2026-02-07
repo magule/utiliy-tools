@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Character Counter</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Character Counter</h1>
+
+    <div class="counter">
+        <div class="text-area">
+            <textarea id="textInput" placeholder="Start typing or paste text here..."></textarea>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-box">
+                <span class="stat-value" id="charCount">0</span>
+                <span class="stat-label">Characters</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-value" id="charNoSpaces">0</span>
+                <span class="stat-label">No Spaces</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-value" id="wordCount">0</span>
+                <span class="stat-label">Words</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-value" id="sentenceCount">0</span>
+                <span class="stat-label">Sentences</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-value" id="paragraphCount">0</span>
+                <span class="stat-label">Paragraphs</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-value" id="lineCount">0</span>
+                <span class="stat-label">Lines</span>
+            </div>
+        </div>
+
+        <div class="extra-stats">
+            <div class="extra-row">
+                <span class="extra-label">Reading Time</span>
+                <span class="extra-value" id="readTime">0 min</span>
+            </div>
+            <div class="extra-row">
+                <span class="extra-label">Speaking Time</span>
+                <span class="extra-value" id="speakTime">0 min</span>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="action-btn" id="copyBtn">Copy Text</button>
+            <button class="action-btn secondary" id="clearBtn">Clear</button>
+        </div>
+    </div>
+
+<script>
+    const textInput = document.getElementById('textInput');
+    const charCount = document.getElementById('charCount');
+    const charNoSpaces = document.getElementById('charNoSpaces');
+    const wordCount = document.getElementById('wordCount');
+    const sentenceCount = document.getElementById('sentenceCount');
+    const paragraphCount = document.getElementById('paragraphCount');
+    const lineCount = document.getElementById('lineCount');
+    const readTime = document.getElementById('readTime');
+    const speakTime = document.getElementById('speakTime');
+    const copyBtn = document.getElementById('copyBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    function formatNumber(num) {
+        return num.toLocaleString();
+    }
+
+    function formatTime(minutes) {
+        if (minutes < 1) {
+            const seconds = Math.round(minutes * 60);
+            return seconds + ' sec';
+        } else if (minutes < 60) {
+            return Math.round(minutes) + ' min';
+        } else {
+            const hours = Math.floor(minutes / 60);
+            const mins = Math.round(minutes % 60);
+            return hours + ' hr ' + mins + ' min';
+        }
+    }
+
+    function analyze() {
+        const text = textInput.value;
+
+        // Characters
+        charCount.textContent = formatNumber(text.length);
+
+        // Characters without spaces
+        charNoSpaces.textContent = formatNumber(text.replace(/\s/g, '').length);
+
+        // Words
+        const words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+        wordCount.textContent = formatNumber(words);
+
+        // Sentences
+        const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
+        sentenceCount.textContent = formatNumber(sentences);
+
+        // Paragraphs
+        const paragraphs = text.split(/\n\n+/).filter(p => p.trim().length > 0).length;
+        paragraphCount.textContent = formatNumber(paragraphs);
+
+        // Lines
+        const lines = text === '' ? 0 : text.split(/\n/).length;
+        lineCount.textContent = formatNumber(lines);
+
+        // Reading time (average 200 words per minute)
+        const readMinutes = words / 200;
+        readTime.textContent = formatTime(readMinutes);
+
+        // Speaking time (average 150 words per minute)
+        const speakMinutes = words / 150;
+        speakTime.textContent = formatTime(speakMinutes);
+    }
+
+    textInput.addEventListener('input', analyze);
+
+    copyBtn.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(textInput.value);
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => copyBtn.textContent = 'Copy Text', 1500);
+    });
+
+    clearBtn.addEventListener('click', () => {
+        textInput.value = '';
+        analyze();
+    });
+
+    // Initialize
+    analyze();
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .counter {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+
+    .text-area {
+        margin-bottom: 25px;
+    }
+
+    .text-area textarea {
+        width: 100%;
+        height: 180px;
+        padding: 15px;
+        font-size: 14px;
+        font-family: inherit;
+        line-height: 1.6;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 10px;
+        color: #fff;
+        outline: none;
+        resize: vertical;
+    }
+
+    .text-area textarea:focus {
+        border-color: #444;
+    }
+
+    .text-area textarea::placeholder {
+        color: #555;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .stat-box {
+        background: #252525;
+        border-radius: 10px;
+        padding: 15px 10px;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .extra-stats {
+        background: #252525;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+
+    .extra-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+    }
+
+    .extra-row:not(:last-child) {
+        border-bottom: 1px solid #333;
+    }
+
+    .extra-label {
+        font-size: 12px;
+        color: #666;
+    }
+
+    .extra-value {
+        font-size: 14px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #fff;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .action-btn {
+        flex: 1;
+        padding: 14px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #fff;
+        border: none;
+        border-radius: 10px;
+        color: #0f0f0f;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: opacity 0.2s ease;
+    }
+
+    .action-btn:hover {
+        opacity: 0.9;
+    }
+
+    .action-btn.secondary {
+        background: #333;
+        color: #aaa;
+    }
+
+    .action-btn.secondary:hover {
+        background: #444;
+        color: #fff;
+    }
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

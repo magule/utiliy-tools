@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Resizer</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Image Resizer</h1>
+
+    <div class="resizer">
+        <div class="upload-zone" id="uploadZone">
+            <div class="upload-icon">🖼️</div>
+            <div class="upload-text">Drop image here or click to upload</div>
+            <div class="upload-hint">Supports JPG, PNG, WebP</div>
+            <input type="file" id="fileInput" accept="image/*" hidden>
+        </div>
+
+        <div class="preview-section" id="previewSection" style="display: none;">
+            <div class="original-info" id="originalInfo"></div>
+            <canvas id="preview"></canvas>
+        </div>
+
+        <div class="options" id="options" style="display: none;">
+            <div class="size-inputs">
+                <div class="size-input">
+                    <label>Width</label>
+                    <input type="number" id="widthInput" min="1" max="10000">
+                    <span>px</span>
+                </div>
+                <button class="link-btn" id="linkBtn" title="Keep aspect ratio">🔗</button>
+                <div class="size-input">
+                    <label>Height</label>
+                    <input type="number" id="heightInput" min="1" max="10000">
+                    <span>px</span>
+                </div>
+            </div>
+
+            <div class="presets">
+                <button class="preset-btn" data-scale="0.25">25%</button>
+                <button class="preset-btn" data-scale="0.5">50%</button>
+                <button class="preset-btn" data-scale="0.75">75%</button>
+                <button class="preset-btn" data-scale="2">200%</button>
+            </div>
+
+            <div class="option-row">
+                <label>Format</label>
+                <select id="format">
+                    <option value="original">Original</option>
+                    <option value="image/png">PNG</option>
+                    <option value="image/jpeg">JPEG</option>
+                    <option value="image/webp">WebP</option>
+                </select>
+            </div>
+
+            <div class="option-row" id="qualityRow">
+                <label>Quality</label>
+                <input type="range" id="quality" min="10" max="100" value="90">
+                <span id="qualityValue">90%</span>
+            </div>
+        </div>
+
+        <div class="actions" id="actions" style="display: none;">
+            <button class="action-btn" id="downloadBtn">Download</button>
+            <button class="action-btn secondary" id="clearBtn">Clear</button>
+        </div>
+
+        <div class="new-size" id="newSize"></div>
+    </div>
+
+<script>
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const previewSection = document.getElementById('previewSection');
+    const originalInfo = document.getElementById('originalInfo');
+    const preview = document.getElementById('preview');
+    const options = document.getElementById('options');
+    const actions = document.getElementById('actions');
+    const widthInput = document.getElementById('widthInput');
+    const heightInput = document.getElementById('heightInput');
+    const linkBtn = document.getElementById('linkBtn');
+    const format = document.getElementById('format');
+    const quality = document.getElementById('quality');
+    const qualityValue = document.getElementById('qualityValue');
+    const qualityRow = document.getElementById('qualityRow');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const newSize = document.getElementById('newSize');
+
+    let originalImage = null;
+    let originalWidth = 0;
+    let originalHeight = 0;
+    let aspectRatio = 1;
+    let keepRatio = true;
+    let originalFormat = 'image/png';
+
+    uploadZone.addEventListener('click', () => fileInput.click());
+
+    uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        if (e.dataTransfer.files[0]) {
+            handleFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files[0]) {
+            handleFile(e.target.files[0]);
+        }
+    });
+
+    function handleFile(file) {
+        if (!file.type.startsWith('image/')) return;
+
+        originalFormat = file.type;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            originalImage = new Image();
+            originalImage.onload = () => {
+                originalWidth = originalImage.width;
+                originalHeight = originalImage.height;
+                aspectRatio = originalWidth / originalHeight;
+
+                originalInfo.textContent = `Original: ${originalWidth} × ${originalHeight}`;
+                widthInput.value = originalWidth;
+                heightInput.value = originalHeight;
+
+                uploadZone.style.display = 'none';
+                previewSection.style.display = 'block';
+                options.style.display = 'block';
+                actions.style.display = 'flex';
+
+                updatePreview();
+            };
+            originalImage.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    linkBtn.addEventListener('click', () => {
+        keepRatio = !keepRatio;
+        linkBtn.classList.toggle('active', keepRatio);
+    });
+    linkBtn.classList.add('active');
+
+    widthInput.addEventListener('input', () => {
+        if (keepRatio) {
+            heightInput.value = Math.round(widthInput.value / aspectRatio);
+        }
+        updatePreview();
+    });
+
+    heightInput.addEventListener('input', () => {
+        if (keepRatio) {
+            widthInput.value = Math.round(heightInput.value * aspectRatio);
+        }
+        updatePreview();
+    });
+
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const scale = parseFloat(btn.dataset.scale);
+            widthInput.value = Math.round(originalWidth * scale);
+            heightInput.value = Math.round(originalHeight * scale);
+            updatePreview();
+        });
+    });
+
+    format.addEventListener('change', () => {
+        const fmt = format.value;
+        qualityRow.style.display = (fmt === 'image/png') ? 'none' : 'flex';
+        updatePreview();
+    });
+
+    quality.addEventListener('input', () => {
+        qualityValue.textContent = quality.value + '%';
+        updatePreview();
+    });
+
+    function updatePreview() {
+        const w = parseInt(widthInput.value) || 1;
+        const h = parseInt(heightInput.value) || 1;
+
+        preview.width = w;
+        preview.height = h;
+        const ctx = preview.getContext('2d');
+        ctx.drawImage(originalImage, 0, 0, w, h);
+
+        const fmt = format.value === 'original' ? originalFormat : format.value;
+        const q = quality.value / 100;
+        const dataUrl = preview.toDataURL(fmt, q);
+        const sizeKB = Math.round((dataUrl.length * 3) / 4 / 1024);
+
+        newSize.innerHTML = `<span class="new-dimensions">${w} × ${h}</span> <span class="new-filesize">~${sizeKB} KB</span>`;
+    }
+
+    downloadBtn.addEventListener('click', () => {
+        const fmt = format.value === 'original' ? originalFormat : format.value;
+        const ext = fmt.split('/')[1];
+        const q = quality.value / 100;
+        const dataUrl = preview.toDataURL(fmt, q);
+
+        const link = document.createElement('a');
+        link.download = `resized.${ext}`;
+        link.href = dataUrl;
+        link.click();
+    });
+
+    clearBtn.addEventListener('click', () => {
+        originalImage = null;
+        uploadZone.style.display = 'block';
+        previewSection.style.display = 'none';
+        options.style.display = 'none';
+        actions.style.display = 'none';
+        newSize.innerHTML = '';
+        fileInput.value = '';
+    });
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .resizer {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+
+    .upload-zone {
+        border: 2px dashed #333;
+        border-radius: 12px;
+        padding: 40px 20px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-bottom: 20px;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.dragover {
+        border-color: #555;
+        background: #252525;
+    }
+
+    .upload-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+    }
+
+    .upload-text {
+        font-size: 14px;
+        color: #888;
+        margin-bottom: 8px;
+    }
+
+    .upload-hint {
+        font-size: 11px;
+        color: #555;
+    }
+
+    .preview-section {
+        margin-bottom: 20px;
+    }
+
+    .original-info {
+        font-size: 11px;
+        color: #555;
+        margin-bottom: 10px;
+    }
+
+    #preview {
+        max-width: 100%;
+        max-height: 200px;
+        border-radius: 8px;
+        border: 1px solid #333;
+    }
+
+    .options {
+        text-align: left;
+        margin-bottom: 20px;
+    }
+
+    .size-inputs {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #252525;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    .size-input {
+        flex: 1;
+    }
+
+    .size-input label {
+        display: block;
+        font-size: 10px;
+        color: #555;
+        margin-bottom: 5px;
+        text-transform: uppercase;
+    }
+
+    .size-input input {
+        width: 100%;
+        padding: 10px;
+        font-size: 14px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 6px;
+        color: #fff;
+        outline: none;
+    }
+
+    .size-input span {
+        font-size: 11px;
+        color: #555;
+    }
+
+    .link-btn {
+        width: 36px;
+        height: 36px;
+        background: #333;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+        margin-top: 15px;
+    }
+
+    .link-btn.active {
+        background: #2ecc71;
+    }
+
+    .presets {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 15px;
+    }
+
+    .preset-btn {
+        flex: 1;
+        padding: 10px;
+        font-size: 11px;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 6px;
+        color: #888;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .preset-btn:hover {
+        background: #333;
+        color: #fff;
+    }
+
+    .option-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #252525;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 10px;
+    }
+
+    .option-row label {
+        font-size: 12px;
+        color: #888;
+    }
+
+    .option-row select {
+        padding: 8px 12px;
+        font-size: 12px;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 6px;
+        color: #fff;
+        outline: none;
+    }
+
+    .option-row input[type="range"] {
+        flex: 1;
+        margin: 0 15px;
+        accent-color: #2ecc71;
+    }
+
+    .option-row span {
+        font-size: 12px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+        min-width: 40px;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+
+    .action-btn {
+        flex: 1;
+        padding: 14px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #fff;
+        border: none;
+        border-radius: 10px;
+        color: #0f0f0f;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: opacity 0.2s ease;
+    }
+
+    .action-btn:hover {
+        opacity: 0.9;
+    }
+
+    .action-btn.secondary {
+        background: #333;
+        color: #aaa;
+    }
+
+    .action-btn.secondary:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .new-size {
+        font-size: 13px;
+    }
+
+    .new-dimensions {
+        color: #2ecc71;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    .new-filesize {
+        color: #555;
+        margin-left: 10px;
+    }
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input[type=number] {
+        -moz-appearance: textfield;
+    }
+
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

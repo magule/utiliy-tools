@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Compressor</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Image Compressor</h1>
+
+    <div class="compressor">
+        <div class="upload-zone" id="uploadZone">
+            <div class="upload-icon">🗜️</div>
+            <div class="upload-text">Drop images here or click to upload</div>
+            <div class="upload-hint">Supports JPG, PNG, WebP</div>
+            <input type="file" id="fileInput" multiple accept="image/*" hidden>
+        </div>
+
+        <div class="options">
+            <div class="option-row">
+                <label>Quality</label>
+                <input type="range" id="quality" min="10" max="100" value="80">
+                <span id="qualityValue">80%</span>
+            </div>
+            <div class="option-row">
+                <label>Max Width</label>
+                <select id="maxWidth">
+                    <option value="0">No limit</option>
+                    <option value="800">800px</option>
+                    <option value="1200">1200px</option>
+                    <option value="1920" selected>1920px</option>
+                    <option value="2560">2560px</option>
+                </select>
+            </div>
+            <div class="option-row">
+                <label>Format</label>
+                <select id="format">
+                    <option value="original">Keep Original</option>
+                    <option value="image/jpeg">JPEG</option>
+                    <option value="image/webp">WebP</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="images-list" id="imagesList"></div>
+
+        <div class="total-savings" id="totalSavings" style="display: none;">
+            <span class="savings-label">Total Savings</span>
+            <span class="savings-value" id="savingsValue"></span>
+        </div>
+
+        <div class="actions" id="actions" style="display: none;">
+            <button class="action-btn" id="downloadAllBtn">Download All</button>
+            <button class="action-btn secondary" id="clearBtn">Clear</button>
+        </div>
+    </div>
+
+<script>
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const imagesList = document.getElementById('imagesList');
+    const quality = document.getElementById('quality');
+    const qualityValue = document.getElementById('qualityValue');
+    const maxWidth = document.getElementById('maxWidth');
+    const format = document.getElementById('format');
+    const totalSavings = document.getElementById('totalSavings');
+    const savingsValue = document.getElementById('savingsValue');
+    const actions = document.getElementById('actions');
+    const downloadAllBtn = document.getElementById('downloadAllBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    let images = [];
+
+    uploadZone.addEventListener('click', () => fileInput.click());
+
+    uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        handleFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+    });
+
+    quality.addEventListener('input', () => {
+        qualityValue.textContent = quality.value + '%';
+        recompressAll();
+    });
+
+    maxWidth.addEventListener('change', recompressAll);
+    format.addEventListener('change', recompressAll);
+
+    async function handleFiles(files) {
+        for (const file of files) {
+            if (file.type.startsWith('image/')) {
+                const img = await loadImage(file);
+                images.push({
+                    name: file.name,
+                    originalSize: file.size,
+                    originalType: file.type,
+                    image: img,
+                    compressed: null,
+                    compressedSize: 0
+                });
+            }
+        }
+        await recompressAll();
+    }
+
+    function loadImage(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function recompressAll() {
+        for (let i = 0; i < images.length; i++) {
+            await compressImage(images[i]);
+        }
+        renderImages();
+    }
+
+    async function compressImage(item) {
+        const img = item.image;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let w = img.width;
+        let h = img.height;
+        const max = parseInt(maxWidth.value);
+
+        if (max > 0 && w > max) {
+            h = (max / w) * h;
+            w = max;
+        }
+
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(img, 0, 0, w, h);
+
+        const fmt = format.value === 'original' ? item.originalType : format.value;
+        const q = quality.value / 100;
+
+        const dataUrl = canvas.toDataURL(fmt, q);
+        item.compressed = dataUrl;
+        item.compressedSize = Math.round((dataUrl.length * 3) / 4);
+    }
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    function renderImages() {
+        if (images.length === 0) {
+            imagesList.innerHTML = '';
+            totalSavings.style.display = 'none';
+            actions.style.display = 'none';
+            return;
+        }
+
+        actions.style.display = 'flex';
+        totalSavings.style.display = 'flex';
+
+        let totalOriginal = 0;
+        let totalCompressed = 0;
+
+        imagesList.innerHTML = images.map((item, i) => {
+            totalOriginal += item.originalSize;
+            totalCompressed += item.compressedSize;
+
+            const savings = ((1 - item.compressedSize / item.originalSize) * 100).toFixed(0);
+            const savingsClass = savings > 0 ? 'positive' : 'negative';
+
+            return `
+                <div class="image-item">
+                    <img src="${item.compressed}" alt="${item.name}">
+                    <div class="image-info">
+                        <div class="image-name">${item.name}</div>
+                        <div class="image-sizes">
+                            <span class="original-size">${formatSize(item.originalSize)}</span>
+                            <span class="arrow">→</span>
+                            <span class="new-size">${formatSize(item.compressedSize)}</span>
+                            <span class="savings ${savingsClass}">${savings}%</span>
+                        </div>
+                    </div>
+                    <button class="download-btn" data-index="${i}">↓</button>
+                    <button class="remove-btn" data-index="${i}">×</button>
+                </div>
+            `;
+        }).join('');
+
+        const totalSavingsPercent = ((1 - totalCompressed / totalOriginal) * 100).toFixed(0);
+        savingsValue.textContent = `${formatSize(totalOriginal - totalCompressed)} (${totalSavingsPercent}%)`;
+    }
+
+    imagesList.addEventListener('click', (e) => {
+        const index = parseInt(e.target.dataset.index);
+
+        if (e.target.classList.contains('download-btn')) {
+            downloadImage(index);
+        } else if (e.target.classList.contains('remove-btn')) {
+            images.splice(index, 1);
+            renderImages();
+        }
+    });
+
+    function downloadImage(index) {
+        const item = images[index];
+        const link = document.createElement('a');
+        const ext = format.value === 'original'
+            ? item.name.split('.').pop()
+            : format.value.split('/')[1];
+        link.download = item.name.replace(/\.[^.]+$/, '') + '-compressed.' + ext;
+        link.href = item.compressed;
+        link.click();
+    }
+
+    downloadAllBtn.addEventListener('click', async () => {
+        for (let i = 0; i < images.length; i++) {
+            downloadImage(i);
+            await new Promise(r => setTimeout(r, 300));
+        }
+    });
+
+    clearBtn.addEventListener('click', () => {
+        images = [];
+        renderImages();
+        fileInput.value = '';
+    });
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .compressor {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 550px;
+        margin: 0 auto;
+    }
+
+    .upload-zone {
+        border: 2px dashed #333;
+        border-radius: 12px;
+        padding: 40px 20px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-bottom: 20px;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.dragover {
+        border-color: #555;
+        background: #252525;
+    }
+
+    .upload-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+    }
+
+    .upload-text {
+        font-size: 14px;
+        color: #888;
+        margin-bottom: 8px;
+    }
+
+    .upload-hint {
+        font-size: 11px;
+        color: #555;
+    }
+
+    .options {
+        background: #252525;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+
+    .option-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+    }
+
+    .option-row:not(:last-child) {
+        border-bottom: 1px solid #333;
+    }
+
+    .option-row label {
+        font-size: 12px;
+        color: #888;
+    }
+
+    .option-row select {
+        padding: 8px 12px;
+        font-size: 12px;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 6px;
+        color: #fff;
+        outline: none;
+    }
+
+    .option-row input[type="range"] {
+        flex: 1;
+        margin: 0 15px;
+        accent-color: #2ecc71;
+    }
+
+    .option-row span {
+        font-size: 12px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+        min-width: 40px;
+    }
+
+    .images-list {
+        margin-bottom: 20px;
+    }
+
+    .image-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: #252525;
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 10px;
+    }
+
+    .image-item img {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 6px;
+    }
+
+    .image-info {
+        flex: 1;
+        text-align: left;
+        min-width: 0;
+    }
+
+    .image-name {
+        font-size: 12px;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 4px;
+    }
+
+    .image-sizes {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+    }
+
+    .original-size {
+        color: #666;
+        text-decoration: line-through;
+    }
+
+    .arrow {
+        color: #444;
+    }
+
+    .new-size {
+        color: #2ecc71;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    .savings {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 10px;
+    }
+
+    .savings.positive {
+        background: rgba(46, 204, 113, 0.2);
+        color: #2ecc71;
+    }
+
+    .savings.negative {
+        background: rgba(231, 76, 60, 0.2);
+        color: #e74c3c;
+    }
+
+    .download-btn,
+    .remove-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+
+    .download-btn {
+        background: #333;
+        color: #888;
+    }
+
+    .download-btn:hover {
+        background: #2ecc71;
+        color: #fff;
+    }
+
+    .remove-btn {
+        background: transparent;
+        color: #555;
+    }
+
+    .remove-btn:hover {
+        color: #e74c3c;
+    }
+
+    .total-savings {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(46, 204, 113, 0.1);
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+
+    .savings-label {
+        font-size: 12px;
+        color: #888;
+    }
+
+    .savings-value {
+        font-size: 14px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .action-btn {
+        flex: 1;
+        padding: 14px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #fff;
+        border: none;
+        border-radius: 10px;
+        color: #0f0f0f;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: opacity 0.2s ease;
+    }
+
+    .action-btn:hover {
+        opacity: 0.9;
+    }
+
+    .action-btn.secondary {
+        background: #333;
+        color: #aaa;
+    }
+
+    .action-btn.secondary:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

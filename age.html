@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Age Calculator</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Age Calculator</h1>
+
+    <div class="calculator">
+        <div class="input-section">
+            <div class="input-row">
+                <label>Date of Birth</label>
+                <input type="date" id="birthDate">
+            </div>
+            <div class="input-row">
+                <label>Calculate age on</label>
+                <input type="date" id="targetDate">
+            </div>
+        </div>
+
+        <div class="results-section" id="results">
+            <div class="age-main">
+                <span class="age-number" id="ageYears">0</span>
+                <span class="age-label">years old</span>
+            </div>
+
+            <div class="age-details">
+                <div class="detail-row">
+                    <span class="detail-value" id="ageMonths">0</span>
+                    <span class="detail-label">months</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-value" id="ageDays">0</span>
+                    <span class="detail-label">days</span>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <span class="stat-value" id="totalMonths">0</span>
+                    <span class="stat-label">Total Months</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-value" id="totalWeeks">0</span>
+                    <span class="stat-label">Total Weeks</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-value" id="totalDays">0</span>
+                    <span class="stat-label">Total Days</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-value" id="totalHours">0</span>
+                    <span class="stat-label">Total Hours</span>
+                </div>
+            </div>
+
+            <div class="next-birthday" id="nextBirthday"></div>
+        </div>
+    </div>
+
+<script>
+    const birthDateInput = document.getElementById('birthDate');
+    const targetDateInput = document.getElementById('targetDate');
+
+    // Set default dates
+    const today = new Date();
+    targetDateInput.value = today.toISOString().split('T')[0];
+
+    function formatNumber(num) {
+        return num.toLocaleString();
+    }
+
+    function calculate() {
+        const birthDate = new Date(birthDateInput.value);
+        const targetDate = new Date(targetDateInput.value);
+
+        if (!birthDateInput.value || birthDate >= targetDate) {
+            document.getElementById('results').style.display = 'none';
+            return;
+        }
+
+        document.getElementById('results').style.display = 'block';
+
+        // Calculate years, months, days
+        let years = targetDate.getFullYear() - birthDate.getFullYear();
+        let months = targetDate.getMonth() - birthDate.getMonth();
+        let days = targetDate.getDate() - birthDate.getDate();
+
+        if (days < 0) {
+            months--;
+            const prevMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 0);
+            days += prevMonth.getDate();
+        }
+
+        if (months < 0) {
+            years--;
+            months += 12;
+        }
+
+        document.getElementById('ageYears').textContent = years;
+        document.getElementById('ageMonths').textContent = months;
+        document.getElementById('ageDays').textContent = days;
+
+        // Calculate totals
+        const diffTime = Math.abs(targetDate - birthDate);
+        const totalDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        const totalWeeks = Math.floor(totalDays / 7);
+        const totalMonths = years * 12 + months;
+        const totalHours = totalDays * 24;
+
+        document.getElementById('totalMonths').textContent = formatNumber(totalMonths);
+        document.getElementById('totalWeeks').textContent = formatNumber(totalWeeks);
+        document.getElementById('totalDays').textContent = formatNumber(totalDays);
+        document.getElementById('totalHours').textContent = formatNumber(totalHours);
+
+        // Next birthday
+        let nextBirthday = new Date(targetDate.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+        if (nextBirthday <= targetDate) {
+            nextBirthday = new Date(targetDate.getFullYear() + 1, birthDate.getMonth(), birthDate.getDate());
+        }
+
+        const daysUntilBirthday = Math.ceil((nextBirthday - targetDate) / (1000 * 60 * 60 * 24));
+        const nextBirthdayEl = document.getElementById('nextBirthday');
+
+        if (daysUntilBirthday === 0) {
+            nextBirthdayEl.innerHTML = "🎂 <span>It's your birthday!</span>";
+        } else {
+            nextBirthdayEl.innerHTML = `<span>${daysUntilBirthday} days</span> until next birthday`;
+        }
+    }
+
+    birthDateInput.addEventListener('change', calculate);
+    targetDateInput.addEventListener('change', calculate);
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .calculator {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    .input-section {
+        margin-bottom: 25px;
+    }
+
+    .input-row {
+        text-align: left;
+        margin-bottom: 15px;
+    }
+
+    .input-row label {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+        margin-bottom: 8px;
+    }
+
+    .input-row input {
+        width: 100%;
+        padding: 14px;
+        font-size: 14px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 10px;
+        color: #fff;
+        outline: none;
+        cursor: pointer;
+    }
+
+    .input-row input:focus {
+        border-color: #555;
+    }
+
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(0.5);
+        cursor: pointer;
+    }
+
+    .results-section {
+        display: none;
+    }
+
+    .age-main {
+        margin-bottom: 20px;
+    }
+
+    .age-number {
+        font-size: 4rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+    }
+
+    .age-label {
+        display: block;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: #555;
+        margin-top: 5px;
+    }
+
+    .age-details {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        margin-bottom: 25px;
+        padding-bottom: 25px;
+        border-bottom: 1px solid #252525;
+    }
+
+    .detail-row {
+        text-align: center;
+    }
+
+    .detail-value {
+        font-size: 1.5rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #fff;
+    }
+
+    .detail-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+        margin-top: 3px;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .stat-box {
+        background: #252525;
+        border-radius: 10px;
+        padding: 15px;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 1.1rem;
+        font-weight: 400;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #fff;
+    }
+
+    .stat-label {
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .next-birthday {
+        background: #252525;
+        border-radius: 10px;
+        padding: 15px;
+        font-size: 13px;
+        color: #666;
+    }
+
+    .next-birthday span {
+        color: #2ecc71;
+        font-weight: 500;
+    }
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

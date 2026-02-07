@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Markdown to HTML</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Markdown to HTML</h1>
+
+    <div class="converter">
+        <div class="panels">
+            <div class="panel">
+                <div class="panel-header">
+                    <span>Markdown</span>
+                    <button class="paste-btn" id="pasteBtn">Paste</button>
+                </div>
+                <textarea id="markdown" placeholder="Enter your markdown here..."></textarea>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <span>Preview</span>
+                    <div class="view-toggle">
+                        <button class="toggle-btn active" data-view="preview">Preview</button>
+                        <button class="toggle-btn" data-view="html">HTML</button>
+                    </div>
+                </div>
+                <div class="preview" id="preview"></div>
+                <pre class="html-output" id="htmlOutput" style="display: none;"><code></code></pre>
+            </div>
+        </div>
+        <div class="actions">
+            <button class="action-btn" id="copyHtmlBtn">Copy HTML</button>
+        </div>
+    </div>
+
+<script>
+    const markdown = document.getElementById('markdown');
+    const preview = document.getElementById('preview');
+    const htmlOutput = document.getElementById('htmlOutput');
+    const pasteBtn = document.getElementById('pasteBtn');
+    const copyHtmlBtn = document.getElementById('copyHtmlBtn');
+
+    function escapeHtml(text) {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    function parseMarkdown(md) {
+        let html = md;
+
+        // Code blocks
+        html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+            return `<pre><code class="language-${lang}">${escapeHtml(code.trim())}</code></pre>`;
+        });
+
+        // Inline code
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+        // Headers
+        html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+        html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+        html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+        // Bold and italic
+        html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+        html = html.replace(/___(.+?)___/g, '<strong><em>$1</em></strong>');
+        html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+        html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+
+        // Strikethrough
+        html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
+
+        // Links
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+
+        // Images
+        html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
+
+        // Blockquotes
+        html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+
+        // Horizontal rule
+        html = html.replace(/^---$/gm, '<hr>');
+        html = html.replace(/^\*\*\*$/gm, '<hr>');
+
+        // Unordered lists
+        html = html.replace(/^[\*\-] (.+)$/gm, '<li>$1</li>');
+        html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+        // Ordered lists
+        html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+
+        // Paragraphs
+        html = html.replace(/\n\n/g, '</p><p>');
+        html = '<p>' + html + '</p>';
+
+        // Clean up
+        html = html.replace(/<p><\/p>/g, '');
+        html = html.replace(/<p>(<h[1-6]>)/g, '$1');
+        html = html.replace(/(<\/h[1-6]>)<\/p>/g, '$1');
+        html = html.replace(/<p>(<ul>)/g, '$1');
+        html = html.replace(/(<\/ul>)<\/p>/g, '$1');
+        html = html.replace(/<p>(<pre>)/g, '$1');
+        html = html.replace(/(<\/pre>)<\/p>/g, '$1');
+        html = html.replace(/<p>(<blockquote>)/g, '$1');
+        html = html.replace(/(<\/blockquote>)<\/p>/g, '$1');
+        html = html.replace(/<p>(<hr>)<\/p>/g, '$1');
+
+        return html;
+    }
+
+    function update() {
+        const html = parseMarkdown(markdown.value);
+        preview.innerHTML = html;
+        htmlOutput.querySelector('code').textContent = html;
+    }
+
+    markdown.addEventListener('input', update);
+
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            if (btn.dataset.view === 'preview') {
+                preview.style.display = 'block';
+                htmlOutput.style.display = 'none';
+            } else {
+                preview.style.display = 'none';
+                htmlOutput.style.display = 'block';
+            }
+        });
+    });
+
+    pasteBtn.addEventListener('click', async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            markdown.value = text;
+            update();
+        } catch (e) {}
+    });
+
+    copyHtmlBtn.addEventListener('click', async () => {
+        const html = parseMarkdown(markdown.value);
+        await navigator.clipboard.writeText(html);
+        copyHtmlBtn.textContent = 'Copied!';
+        setTimeout(() => copyHtmlBtn.textContent = 'Copy HTML', 1500);
+    });
+
+    // Sample markdown
+    markdown.value = `# Hello World
+
+This is a **markdown** preview with *italic* and ~~strikethrough~~ text.
+
+## Features
+
+- Bold and italic text
+- Links and images
+- Code blocks
+
+\`\`\`javascript
+const hello = "world";
+\`\`\`
+
+> This is a blockquote
+
+[Visit Example](https://example.com)`;
+    update();
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .converter {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 20px;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .panels {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .panel {
+        background: #252525;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        border-bottom: 1px solid #333;
+    }
+
+    .panel-header span {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .paste-btn {
+        padding: 4px 10px;
+        font-size: 10px;
+        background: #333;
+        border: none;
+        border-radius: 4px;
+        color: #888;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .paste-btn:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .view-toggle {
+        display: flex;
+        gap: 4px;
+    }
+
+    .toggle-btn {
+        padding: 4px 10px;
+        font-size: 10px;
+        background: transparent;
+        border: 1px solid #333;
+        border-radius: 4px;
+        color: #666;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .toggle-btn.active {
+        background: #2ecc71;
+        border-color: #2ecc71;
+        color: #fff;
+    }
+
+    textarea {
+        width: 100%;
+        height: 350px;
+        padding: 15px;
+        font-size: 13px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        line-height: 1.6;
+        background: transparent;
+        border: none;
+        color: #fff;
+        outline: none;
+        resize: none;
+    }
+
+    textarea::placeholder {
+        color: #555;
+    }
+
+    .preview {
+        padding: 15px;
+        height: 350px;
+        overflow-y: auto;
+        text-align: left;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .preview h1, .preview h2, .preview h3 {
+        color: #fff;
+        margin: 1em 0 0.5em 0;
+    }
+
+    .preview h1 { font-size: 1.5em; }
+    .preview h2 { font-size: 1.3em; }
+    .preview h3 { font-size: 1.1em; }
+
+    .preview p {
+        color: #ccc;
+        margin-bottom: 1em;
+    }
+
+    .preview strong { color: #fff; }
+    .preview em { color: #bbb; }
+    .preview del { color: #666; }
+
+    .preview a {
+        color: #3498db;
+    }
+
+    .preview code {
+        background: #333;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        font-size: 0.9em;
+        color: #2ecc71;
+    }
+
+    .preview pre {
+        background: #333;
+        padding: 12px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 1em 0;
+    }
+
+    .preview pre code {
+        background: none;
+        padding: 0;
+    }
+
+    .preview blockquote {
+        border-left: 3px solid #444;
+        padding-left: 15px;
+        color: #888;
+        margin: 1em 0;
+    }
+
+    .preview ul, .preview ol {
+        padding-left: 20px;
+        color: #ccc;
+        margin: 1em 0;
+    }
+
+    .preview hr {
+        border: none;
+        border-top: 1px solid #333;
+        margin: 1em 0;
+    }
+
+    .html-output {
+        padding: 15px;
+        height: 350px;
+        overflow: auto;
+        text-align: left;
+        margin: 0;
+        background: transparent;
+    }
+
+    .html-output code {
+        font-size: 12px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .action-btn {
+        flex: 1;
+        padding: 14px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #fff;
+        border: none;
+        border-radius: 10px;
+        color: #0f0f0f;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: opacity 0.2s ease;
+    }
+
+    .action-btn:hover {
+        opacity: 0.9;
+    }
+
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    @media (max-width: 768px) {
+        .panels {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

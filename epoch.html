@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Epoch Converter</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Epoch Converter</h1>
+
+    <div class="converter">
+        <div class="current-time">
+            <div class="current-label">Current Unix Timestamp</div>
+            <div class="current-value" id="currentTime">0</div>
+            <button class="copy-btn" id="copyCurrentBtn">Copy</button>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <span>Timestamp to Date</span>
+            </div>
+            <div class="input-row">
+                <input type="number" id="timestampInput" placeholder="Enter Unix timestamp...">
+                <select id="timestampUnit">
+                    <option value="s">Seconds</option>
+                    <option value="ms">Milliseconds</option>
+                </select>
+            </div>
+            <div class="result" id="timestampResult"></div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <span>Date to Timestamp</span>
+            </div>
+            <div class="date-inputs">
+                <input type="date" id="dateInput">
+                <input type="time" id="timeInput" step="1">
+            </div>
+            <div class="result" id="dateResult"></div>
+        </div>
+
+        <div class="formats" id="formats" style="display: none;">
+            <div class="section-header">
+                <span>Date Formats</span>
+            </div>
+            <div class="formats-list" id="formatsList"></div>
+        </div>
+    </div>
+
+<script>
+    const currentTimeEl = document.getElementById('currentTime');
+    const copyCurrentBtn = document.getElementById('copyCurrentBtn');
+    const timestampInput = document.getElementById('timestampInput');
+    const timestampUnit = document.getElementById('timestampUnit');
+    const timestampResult = document.getElementById('timestampResult');
+    const dateInput = document.getElementById('dateInput');
+    const timeInput = document.getElementById('timeInput');
+    const dateResult = document.getElementById('dateResult');
+    const formats = document.getElementById('formats');
+    const formatsList = document.getElementById('formatsList');
+
+    // Update current time
+    function updateCurrentTime() {
+        currentTimeEl.textContent = Math.floor(Date.now() / 1000);
+    }
+    updateCurrentTime();
+    setInterval(updateCurrentTime, 1000);
+
+    copyCurrentBtn.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(currentTimeEl.textContent);
+        copyCurrentBtn.textContent = 'Copied!';
+        setTimeout(() => copyCurrentBtn.textContent = 'Copy', 1500);
+    });
+
+    // Set default date/time to now
+    const now = new Date();
+    dateInput.value = now.toISOString().split('T')[0];
+    timeInput.value = now.toTimeString().split(' ')[0];
+
+    function showFormats(date) {
+        const formatOptions = [
+            { label: 'ISO 8601', value: date.toISOString() },
+            { label: 'UTC', value: date.toUTCString() },
+            { label: 'Local', value: date.toString() },
+            { label: 'Date only', value: date.toLocaleDateString() },
+            { label: 'Time only', value: date.toLocaleTimeString() },
+            { label: 'Relative', value: getRelativeTime(date) }
+        ];
+
+        formatsList.innerHTML = formatOptions.map(f => `
+            <div class="format-item">
+                <span class="format-label">${f.label}</span>
+                <span class="format-value">${f.value}</span>
+            </div>
+        `).join('');
+
+        formats.style.display = 'block';
+    }
+
+    function getRelativeTime(date) {
+        const now = new Date();
+        const diff = now - date;
+        const absDiff = Math.abs(diff);
+        const isFuture = diff < 0;
+
+        const seconds = Math.floor(absDiff / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        const months = Math.floor(days / 30);
+        const years = Math.floor(days / 365);
+
+        let unit, value;
+        if (years > 0) { value = years; unit = 'year'; }
+        else if (months > 0) { value = months; unit = 'month'; }
+        else if (days > 0) { value = days; unit = 'day'; }
+        else if (hours > 0) { value = hours; unit = 'hour'; }
+        else if (minutes > 0) { value = minutes; unit = 'minute'; }
+        else { value = seconds; unit = 'second'; }
+
+        const plural = value !== 1 ? 's' : '';
+        if (isFuture) {
+            return `in ${value} ${unit}${plural}`;
+        }
+        return `${value} ${unit}${plural} ago`;
+    }
+
+    timestampInput.addEventListener('input', () => {
+        const ts = parseInt(timestampInput.value);
+        if (isNaN(ts)) {
+            timestampResult.innerHTML = '';
+            formats.style.display = 'none';
+            return;
+        }
+
+        const ms = timestampUnit.value === 's' ? ts * 1000 : ts;
+        const date = new Date(ms);
+
+        if (isNaN(date.getTime())) {
+            timestampResult.innerHTML = '<span class="error">Invalid timestamp</span>';
+            formats.style.display = 'none';
+            return;
+        }
+
+        timestampResult.innerHTML = `
+            <span class="date-output">${date.toLocaleString()}</span>
+        `;
+
+        showFormats(date);
+    });
+
+    timestampUnit.addEventListener('change', () => {
+        timestampInput.dispatchEvent(new Event('input'));
+    });
+
+    function updateDateResult() {
+        if (!dateInput.value || !timeInput.value) return;
+
+        const date = new Date(`${dateInput.value}T${timeInput.value}`);
+
+        if (isNaN(date.getTime())) {
+            dateResult.innerHTML = '<span class="error">Invalid date</span>';
+            return;
+        }
+
+        const seconds = Math.floor(date.getTime() / 1000);
+        const ms = date.getTime();
+
+        dateResult.innerHTML = `
+            <div class="timestamp-output">
+                <span class="ts-label">Seconds</span>
+                <span class="ts-value">${seconds}</span>
+            </div>
+            <div class="timestamp-output">
+                <span class="ts-label">Milliseconds</span>
+                <span class="ts-value">${ms}</span>
+            </div>
+        `;
+    }
+
+    dateInput.addEventListener('input', updateDateResult);
+    timeInput.addEventListener('input', updateDateResult);
+    updateDateResult();
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .converter {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 500px;
+        margin: 0 auto;
+        text-align: left;
+    }
+
+    .current-time {
+        background: #252525;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 25px;
+    }
+
+    .current-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+        margin-bottom: 10px;
+    }
+
+    .current-value {
+        font-size: 2.5rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+        margin-bottom: 15px;
+    }
+
+    .copy-btn {
+        padding: 8px 16px;
+        font-size: 10px;
+        background: #333;
+        border: none;
+        border-radius: 6px;
+        color: #888;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .section {
+        margin-bottom: 25px;
+    }
+
+    .section-header {
+        margin-bottom: 10px;
+    }
+
+    .section-header span {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .input-row {
+        display: flex;
+        gap: 10px;
+    }
+
+    .input-row input {
+        flex: 1;
+    }
+
+    input, select {
+        padding: 12px 15px;
+        font-size: 14px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 8px;
+        color: #fff;
+        outline: none;
+    }
+
+    input:focus, select:focus {
+        border-color: #444;
+    }
+
+    select {
+        cursor: pointer;
+    }
+
+    .date-inputs {
+        display: flex;
+        gap: 10px;
+    }
+
+    .date-inputs input {
+        flex: 1;
+    }
+
+    .result {
+        margin-top: 15px;
+    }
+
+    .date-output {
+        display: block;
+        padding: 15px;
+        background: #252525;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #2ecc71;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    .timestamp-output {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 15px;
+        background: #252525;
+        border-radius: 8px;
+        margin-bottom: 8px;
+    }
+
+    .ts-label {
+        font-size: 12px;
+        color: #888;
+    }
+
+    .ts-value {
+        font-size: 14px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+    }
+
+    .error {
+        color: #e74c3c;
+    }
+
+    .formats {
+        background: #252525;
+        border-radius: 10px;
+        padding: 15px;
+    }
+
+    .format-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #333;
+    }
+
+    .format-item:last-child {
+        border-bottom: none;
+    }
+
+    .format-label {
+        font-size: 11px;
+        color: #888;
+    }
+
+    .format-value {
+        font-size: 12px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #fff;
+        text-align: right;
+    }
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Diff Checker</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Diff Checker</h1>
+
+    <div class="checker">
+        <div class="inputs">
+            <div class="input-panel">
+                <div class="panel-header">
+                    <span>Original</span>
+                    <button class="clear-btn" data-target="original">Clear</button>
+                </div>
+                <textarea id="original" placeholder="Paste original text..."></textarea>
+            </div>
+            <div class="input-panel">
+                <div class="panel-header">
+                    <span>Changed</span>
+                    <button class="clear-btn" data-target="changed">Clear</button>
+                </div>
+                <textarea id="changed" placeholder="Paste changed text..."></textarea>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="action-btn" id="compareBtn">Compare</button>
+        </div>
+
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stat">
+                <span class="stat-value added" id="addedCount">0</span>
+                <span class="stat-label">Added</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value removed" id="removedCount">0</span>
+                <span class="stat-label">Removed</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="unchangedCount">0</span>
+                <span class="stat-label">Unchanged</span>
+            </div>
+        </div>
+
+        <div class="diff-output" id="diffOutput"></div>
+    </div>
+
+<script>
+    const original = document.getElementById('original');
+    const changed = document.getElementById('changed');
+    const compareBtn = document.getElementById('compareBtn');
+    const diffOutput = document.getElementById('diffOutput');
+    const stats = document.getElementById('stats');
+    const addedCount = document.getElementById('addedCount');
+    const removedCount = document.getElementById('removedCount');
+    const unchangedCount = document.getElementById('unchangedCount');
+
+    document.querySelectorAll('.clear-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.getElementById(btn.dataset.target).value = '';
+        });
+    });
+
+    function diff(oldText, newText) {
+        const oldLines = oldText.split('\n');
+        const newLines = newText.split('\n');
+
+        // Simple LCS-based diff
+        const m = oldLines.length;
+        const n = newLines.length;
+
+        // Build LCS table
+        const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+
+        for (let i = 1; i <= m; i++) {
+            for (let j = 1; j <= n; j++) {
+                if (oldLines[i - 1] === newLines[j - 1]) {
+                    dp[i][j] = dp[i - 1][j - 1] + 1;
+                } else {
+                    dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+                }
+            }
+        }
+
+        // Backtrack to find diff
+        const result = [];
+        let i = m, j = n;
+
+        while (i > 0 || j > 0) {
+            if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
+                result.unshift({ type: 'unchanged', line: oldLines[i - 1] });
+                i--; j--;
+            } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+                result.unshift({ type: 'added', line: newLines[j - 1] });
+                j--;
+            } else if (i > 0) {
+                result.unshift({ type: 'removed', line: oldLines[i - 1] });
+                i--;
+            }
+        }
+
+        return result;
+    }
+
+    function escapeHtml(text) {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    compareBtn.addEventListener('click', () => {
+        const result = diff(original.value, changed.value);
+
+        let added = 0, removed = 0, unchanged = 0;
+
+        const html = result.map((item, idx) => {
+            const lineNum = idx + 1;
+            const escapedLine = escapeHtml(item.line) || '&nbsp;';
+
+            if (item.type === 'added') {
+                added++;
+                return `<div class="diff-line added"><span class="line-num">+</span><span class="line-content">${escapedLine}</span></div>`;
+            } else if (item.type === 'removed') {
+                removed++;
+                return `<div class="diff-line removed"><span class="line-num">-</span><span class="line-content">${escapedLine}</span></div>`;
+            } else {
+                unchanged++;
+                return `<div class="diff-line"><span class="line-num">${lineNum}</span><span class="line-content">${escapedLine}</span></div>`;
+            }
+        }).join('');
+
+        diffOutput.innerHTML = html || '<div class="no-diff">No differences found</div>';
+
+        addedCount.textContent = added;
+        removedCount.textContent = removed;
+        unchangedCount.textContent = unchanged;
+
+        stats.style.display = 'flex';
+    });
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .checker {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 25px;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .inputs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .input-panel {
+        background: #252525;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 15px;
+        border-bottom: 1px solid #333;
+    }
+
+    .panel-header span {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .clear-btn {
+        padding: 4px 10px;
+        font-size: 10px;
+        background: #333;
+        border: none;
+        border-radius: 4px;
+        color: #888;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .clear-btn:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    textarea {
+        width: 100%;
+        height: 200px;
+        padding: 15px;
+        font-size: 12px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        line-height: 1.5;
+        background: transparent;
+        border: none;
+        color: #fff;
+        outline: none;
+        resize: none;
+    }
+
+    textarea::placeholder {
+        color: #555;
+    }
+
+    .actions {
+        margin-bottom: 20px;
+    }
+
+    .action-btn {
+        width: 100%;
+        padding: 14px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #fff;
+        border: none;
+        border-radius: 10px;
+        color: #0f0f0f;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: opacity 0.2s ease;
+    }
+
+    .action-btn:hover {
+        opacity: 0.9;
+    }
+
+    .stats {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        margin-bottom: 20px;
+    }
+
+    .stat {
+        text-align: center;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #888;
+    }
+
+    .stat-value.added {
+        color: #2ecc71;
+    }
+
+    .stat-value.removed {
+        color: #e74c3c;
+    }
+
+    .stat-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .diff-output {
+        background: #252525;
+        border-radius: 10px;
+        max-height: 400px;
+        overflow-y: auto;
+        text-align: left;
+    }
+
+    .no-diff {
+        padding: 30px;
+        text-align: center;
+        color: #555;
+    }
+
+    .diff-line {
+        display: flex;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        font-size: 12px;
+        line-height: 1.6;
+        border-bottom: 1px solid #333;
+    }
+
+    .diff-line:last-child {
+        border-bottom: none;
+    }
+
+    .diff-line.added {
+        background: rgba(46, 204, 113, 0.1);
+    }
+
+    .diff-line.removed {
+        background: rgba(231, 76, 60, 0.1);
+    }
+
+    .line-num {
+        min-width: 40px;
+        padding: 8px 12px;
+        text-align: right;
+        color: #555;
+        background: rgba(0,0,0,0.2);
+        user-select: none;
+    }
+
+    .diff-line.added .line-num {
+        color: #2ecc71;
+    }
+
+    .diff-line.removed .line-num {
+        color: #e74c3c;
+    }
+
+    .line-content {
+        flex: 1;
+        padding: 8px 15px;
+        color: #ccc;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    .diff-line.added .line-content {
+        color: #2ecc71;
+    }
+
+    .diff-line.removed .line-content {
+        color: #e74c3c;
+        text-decoration: line-through;
+    }
+
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    @media (max-width: 768px) {
+        .inputs {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>URL Encoder/Decoder</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>URL Encoder/Decoder</h1>
+
+    <div class="converter">
+        <div class="input-section">
+            <div class="section-header">
+                <span>Input</span>
+                <button class="clear-btn" id="clearBtn">Clear</button>
+            </div>
+            <textarea id="input" placeholder="Enter text or URL to encode/decode..."></textarea>
+        </div>
+
+        <div class="actions">
+            <button class="action-btn" id="encodeBtn">Encode</button>
+            <button class="action-btn" id="decodeBtn">Decode</button>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="output-section">
+            <div class="section-header">
+                <span>Output</span>
+                <button class="copy-btn" id="copyBtn">Copy</button>
+            </div>
+            <textarea id="output" readonly></textarea>
+        </div>
+
+        <div class="url-parser" id="urlParser" style="display: none;">
+            <div class="section-header">
+                <span>URL Components</span>
+            </div>
+            <div class="components" id="components"></div>
+        </div>
+    </div>
+
+<script>
+    const input = document.getElementById('input');
+    const output = document.getElementById('output');
+    const status = document.getElementById('status');
+    const encodeBtn = document.getElementById('encodeBtn');
+    const decodeBtn = document.getElementById('decodeBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const urlParser = document.getElementById('urlParser');
+    const components = document.getElementById('components');
+
+    function setStatus(message, type) {
+        status.textContent = message;
+        status.className = 'status ' + type;
+    }
+
+    encodeBtn.addEventListener('click', () => {
+        try {
+            const encoded = encodeURIComponent(input.value);
+            output.value = encoded;
+            setStatus('Encoded successfully', 'success');
+            urlParser.style.display = 'none';
+        } catch (e) {
+            setStatus('Error encoding: ' + e.message, 'error');
+        }
+    });
+
+    decodeBtn.addEventListener('click', () => {
+        try {
+            const decoded = decodeURIComponent(input.value);
+            output.value = decoded;
+            setStatus('Decoded successfully', 'success');
+            parseURL(decoded);
+        } catch (e) {
+            setStatus('Error decoding: ' + e.message, 'error');
+            urlParser.style.display = 'none';
+        }
+    });
+
+    function parseURL(text) {
+        try {
+            const url = new URL(text);
+            const params = new URLSearchParams(url.search);
+
+            let html = '';
+
+            const parts = [
+                { label: 'Protocol', value: url.protocol.replace(':', '') },
+                { label: 'Host', value: url.host },
+                { label: 'Pathname', value: url.pathname },
+                { label: 'Hash', value: url.hash || '(none)' }
+            ];
+
+            html += parts.map(p => `
+                <div class="component">
+                    <span class="component-label">${p.label}</span>
+                    <span class="component-value">${p.value}</span>
+                </div>
+            `).join('');
+
+            if (params.toString()) {
+                html += '<div class="params-header">Query Parameters</div>';
+                for (const [key, value] of params) {
+                    html += `
+                        <div class="component param">
+                            <span class="component-label">${key}</span>
+                            <span class="component-value">${value}</span>
+                        </div>
+                    `;
+                }
+            }
+
+            components.innerHTML = html;
+            urlParser.style.display = 'block';
+        } catch (e) {
+            urlParser.style.display = 'none';
+        }
+    }
+
+    copyBtn.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(output.value);
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+    });
+
+    clearBtn.addEventListener('click', () => {
+        input.value = '';
+        output.value = '';
+        status.className = 'status';
+        urlParser.style.display = 'none';
+    });
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .converter {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 600px;
+        margin: 0 auto;
+        text-align: left;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .section-header span {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .clear-btn,
+    .copy-btn {
+        padding: 5px 12px;
+        font-size: 10px;
+        background: #333;
+        border: none;
+        border-radius: 4px;
+        color: #888;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: all 0.2s;
+    }
+
+    .clear-btn:hover,
+    .copy-btn:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .input-section,
+    .output-section {
+        margin-bottom: 20px;
+    }
+
+    textarea {
+        width: 100%;
+        height: 100px;
+        padding: 15px;
+        font-size: 13px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        line-height: 1.5;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 10px;
+        color: #fff;
+        outline: none;
+        resize: vertical;
+    }
+
+    textarea:focus {
+        border-color: #444;
+    }
+
+    textarea::placeholder {
+        color: #555;
+    }
+
+    #output {
+        color: #2ecc71;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+
+    .action-btn {
+        flex: 1;
+        padding: 14px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #fff;
+        border: none;
+        border-radius: 10px;
+        color: #0f0f0f;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: opacity 0.2s ease;
+    }
+
+    .action-btn:hover {
+        opacity: 0.9;
+    }
+
+    .status {
+        font-size: 12px;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        display: none;
+    }
+
+    .status.success {
+        display: block;
+        background: rgba(46, 204, 113, 0.1);
+        color: #2ecc71;
+    }
+
+    .status.error {
+        display: block;
+        background: rgba(231, 76, 60, 0.1);
+        color: #e74c3c;
+    }
+
+    .url-parser {
+        background: #252525;
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 20px;
+    }
+
+    .components {
+        margin-top: 10px;
+    }
+
+    .component {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #333;
+    }
+
+    .component:last-child {
+        border-bottom: none;
+    }
+
+    .component-label {
+        font-size: 11px;
+        color: #888;
+    }
+
+    .component-value {
+        font-size: 12px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+        word-break: break-all;
+        text-align: right;
+        max-width: 70%;
+    }
+
+    .params-header {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #333;
+    }
+
+    .param .component-value {
+        color: #3498db;
+    }
+
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

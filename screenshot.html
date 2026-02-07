@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Screenshot Beautifier</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Screenshot Beautifier</h1>
+
+    <div class="beautifier">
+        <div class="upload-zone" id="uploadZone">
+            <div class="upload-icon">📸</div>
+            <div class="upload-text">Drop screenshot here or click to upload</div>
+            <div class="upload-hint">Or paste from clipboard (Ctrl/Cmd + V)</div>
+            <input type="file" id="fileInput" accept="image/*" hidden>
+        </div>
+
+        <div class="editor" id="editor" style="display: none;">
+            <div class="preview-container" id="previewContainer">
+                <div class="device-frame" id="deviceFrame">
+                    <img id="screenshot" alt="Screenshot">
+                </div>
+            </div>
+
+            <div class="options">
+                <div class="option-group">
+                    <span class="option-label">Background</span>
+                    <div class="gradient-options" id="gradientOptions">
+                        <button class="gradient-btn active" data-gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"></button>
+                        <button class="gradient-btn" data-gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"></button>
+                        <button class="gradient-btn" data-gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"></button>
+                        <button class="gradient-btn" data-gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"></button>
+                        <button class="gradient-btn" data-gradient="linear-gradient(135deg, #fa709a 0%, #fee140 100%)"></button>
+                        <button class="gradient-btn" data-gradient="linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)"></button>
+                        <button class="gradient-btn" data-gradient="linear-gradient(135deg, #2c3e50 0%, #4ca1af 100%)"></button>
+                        <button class="gradient-btn" data-gradient="linear-gradient(135deg, #0f0f0f 0%, #333 100%)"></button>
+                    </div>
+                </div>
+
+                <div class="option-group">
+                    <span class="option-label">Padding</span>
+                    <div class="padding-options">
+                        <button class="padding-btn" data-padding="20">S</button>
+                        <button class="padding-btn active" data-padding="40">M</button>
+                        <button class="padding-btn" data-padding="60">L</button>
+                        <button class="padding-btn" data-padding="80">XL</button>
+                    </div>
+                </div>
+
+                <div class="option-group">
+                    <span class="option-label">Shadow</span>
+                    <input type="range" id="shadow" min="0" max="100" value="50">
+                </div>
+
+                <div class="option-group">
+                    <span class="option-label">Border Radius</span>
+                    <input type="range" id="radius" min="0" max="30" value="10">
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="action-btn" id="downloadBtn">Download</button>
+                <button class="action-btn secondary" id="clearBtn">New Image</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const editor = document.getElementById('editor');
+    const previewContainer = document.getElementById('previewContainer');
+    const deviceFrame = document.getElementById('deviceFrame');
+    const screenshot = document.getElementById('screenshot');
+    const shadow = document.getElementById('shadow');
+    const radius = document.getElementById('radius');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    let currentGradient = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    let currentPadding = 40;
+
+    uploadZone.addEventListener('click', () => fileInput.click());
+
+    uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        if (e.dataTransfer.files[0]) {
+            handleFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files[0]) {
+            handleFile(e.target.files[0]);
+        }
+    });
+
+    // Paste from clipboard
+    document.addEventListener('paste', (e) => {
+        const items = e.clipboardData.items;
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                const file = item.getAsFile();
+                handleFile(file);
+                break;
+            }
+        }
+    });
+
+    function handleFile(file) {
+        if (!file.type.startsWith('image/')) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            screenshot.src = e.target.result;
+            uploadZone.style.display = 'none';
+            editor.style.display = 'block';
+            updatePreview();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    document.getElementById('gradientOptions').addEventListener('click', (e) => {
+        if (e.target.classList.contains('gradient-btn')) {
+            document.querySelectorAll('.gradient-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            currentGradient = e.target.dataset.gradient;
+            updatePreview();
+        }
+    });
+
+    document.querySelectorAll('.padding-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.padding-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentPadding = parseInt(btn.dataset.padding);
+            updatePreview();
+        });
+    });
+
+    shadow.addEventListener('input', updatePreview);
+    radius.addEventListener('input', updatePreview);
+
+    function updatePreview() {
+        previewContainer.style.background = currentGradient;
+        previewContainer.style.padding = currentPadding + 'px';
+
+        const shadowValue = shadow.value;
+        const shadowPx = shadowValue * 0.5;
+        const shadowBlur = shadowValue * 0.8;
+        const shadowAlpha = shadowValue / 200;
+        deviceFrame.style.boxShadow = `0 ${shadowPx}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha})`;
+
+        deviceFrame.style.borderRadius = radius.value + 'px';
+        screenshot.style.borderRadius = radius.value + 'px';
+    }
+
+    downloadBtn.addEventListener('click', async () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const img = screenshot;
+        const padding = currentPadding * 2;
+        const w = img.naturalWidth + padding * 2;
+        const h = img.naturalHeight + padding * 2;
+
+        canvas.width = w;
+        canvas.height = h;
+
+        // Draw gradient background
+        const gradientMatch = currentGradient.match(/(\d+)deg,\s*([^,]+)\s*0%,\s*([^)]+)\s*100%/);
+        if (gradientMatch) {
+            const angle = parseInt(gradientMatch[1]) * Math.PI / 180;
+            const x1 = w/2 - Math.cos(angle) * w/2;
+            const y1 = h/2 - Math.sin(angle) * h/2;
+            const x2 = w/2 + Math.cos(angle) * w/2;
+            const y2 = h/2 + Math.sin(angle) * h/2;
+            const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+            gradient.addColorStop(0, gradientMatch[2].trim());
+            gradient.addColorStop(1, gradientMatch[3].trim());
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, w, h);
+        }
+
+        // Draw shadow
+        const shadowValue = shadow.value;
+        if (shadowValue > 0) {
+            ctx.shadowColor = `rgba(0,0,0,${shadowValue/200})`;
+            ctx.shadowBlur = shadowValue * 0.8;
+            ctx.shadowOffsetY = shadowValue * 0.5;
+        }
+
+        // Draw rounded rect with image
+        const r = parseInt(radius.value);
+        const x = padding;
+        const y = padding;
+        const imgW = img.naturalWidth;
+        const imgH = img.naturalHeight;
+
+        ctx.beginPath();
+        ctx.roundRect(x, y, imgW, imgH, r);
+        ctx.closePath();
+        ctx.clip();
+
+        ctx.drawImage(img, x, y, imgW, imgH);
+
+        const link = document.createElement('a');
+        link.download = 'beautified-screenshot.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    });
+
+    clearBtn.addEventListener('click', () => {
+        editor.style.display = 'none';
+        uploadZone.style.display = 'block';
+        fileInput.value = '';
+    });
+
+    // Initialize gradient buttons with colors
+    document.querySelectorAll('.gradient-btn').forEach(btn => {
+        btn.style.background = btn.dataset.gradient;
+    });
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .beautifier {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 700px;
+        margin: 0 auto;
+    }
+
+    .upload-zone {
+        border: 2px dashed #333;
+        border-radius: 12px;
+        padding: 40px 20px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.dragover {
+        border-color: #555;
+        background: #252525;
+    }
+
+    .upload-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+    }
+
+    .upload-text {
+        font-size: 14px;
+        color: #888;
+        margin-bottom: 8px;
+    }
+
+    .upload-hint {
+        font-size: 11px;
+        color: #555;
+    }
+
+    .preview-container {
+        padding: 40px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        display: inline-block;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .device-frame {
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 25px 40px rgba(0,0,0,0.25);
+    }
+
+    #screenshot {
+        display: block;
+        max-width: 100%;
+        max-height: 300px;
+        border-radius: 10px;
+    }
+
+    .options {
+        background: #252525;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        text-align: left;
+    }
+
+    .option-group {
+        margin-bottom: 15px;
+    }
+
+    .option-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .option-label {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+        margin-bottom: 10px;
+    }
+
+    .gradient-options {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .gradient-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .gradient-btn:hover {
+        transform: scale(1.1);
+    }
+
+    .gradient-btn.active {
+        border-color: #fff;
+    }
+
+    .padding-options {
+        display: flex;
+        gap: 8px;
+    }
+
+    .padding-btn {
+        width: 40px;
+        height: 32px;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 6px;
+        color: #888;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .padding-btn:hover {
+        border-color: #555;
+        color: #fff;
+    }
+
+    .padding-btn.active {
+        background: #2ecc71;
+        border-color: #2ecc71;
+        color: #fff;
+    }
+
+    .option-group input[type="range"] {
+        width: 100%;
+        accent-color: #2ecc71;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .action-btn {
+        flex: 1;
+        padding: 14px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #fff;
+        border: none;
+        border-radius: 10px;
+        color: #0f0f0f;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: opacity 0.2s ease;
+    }
+
+    .action-btn:hover {
+        opacity: 0.9;
+    }
+
+    .action-btn.secondary {
+        background: #333;
+        color: #aaa;
+    }
+
+    .action-btn.secondary:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

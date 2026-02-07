@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lorem Ipsum Generator</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Lorem Ipsum Generator</h1>
+
+    <div class="generator">
+        <div class="options">
+            <div class="option-row">
+                <label>Type</label>
+                <select id="type">
+                    <option value="paragraphs">Paragraphs</option>
+                    <option value="sentences">Sentences</option>
+                    <option value="words">Words</option>
+                </select>
+            </div>
+            <div class="option-row">
+                <label>Amount</label>
+                <div class="amount-control">
+                    <button class="amount-btn" id="decreaseBtn">−</button>
+                    <input type="number" id="amount" value="3" min="1" max="100">
+                    <button class="amount-btn" id="increaseBtn">+</button>
+                </div>
+            </div>
+            <div class="option-row">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="startLorem" checked>
+                    <span>Start with "Lorem ipsum..."</span>
+                </label>
+            </div>
+        </div>
+
+        <button class="generate-btn" id="generateBtn">Generate</button>
+
+        <div class="output-section">
+            <div class="output-header">
+                <span class="word-count" id="wordCount">0 words</span>
+                <button class="copy-btn" id="copyBtn">Copy</button>
+            </div>
+            <div class="output" id="output"></div>
+        </div>
+    </div>
+
+<script>
+    const words = [
+        'lorem', 'ipsum', 'dolor', 'sit', 'amet', 'consectetur', 'adipiscing', 'elit',
+        'sed', 'do', 'eiusmod', 'tempor', 'incididunt', 'ut', 'labore', 'et', 'dolore',
+        'magna', 'aliqua', 'enim', 'ad', 'minim', 'veniam', 'quis', 'nostrud',
+        'exercitation', 'ullamco', 'laboris', 'nisi', 'aliquip', 'ex', 'ea', 'commodo',
+        'consequat', 'duis', 'aute', 'irure', 'in', 'reprehenderit', 'voluptate',
+        'velit', 'esse', 'cillum', 'fugiat', 'nulla', 'pariatur', 'excepteur', 'sint',
+        'occaecat', 'cupidatat', 'non', 'proident', 'sunt', 'culpa', 'qui', 'officia',
+        'deserunt', 'mollit', 'anim', 'id', 'est', 'laborum', 'perspiciatis', 'unde',
+        'omnis', 'iste', 'natus', 'error', 'voluptatem', 'accusantium', 'doloremque',
+        'laudantium', 'totam', 'rem', 'aperiam', 'eaque', 'ipsa', 'quae', 'ab', 'illo',
+        'inventore', 'veritatis', 'quasi', 'architecto', 'beatae', 'vitae', 'dicta',
+        'explicabo', 'nemo', 'ipsam', 'quia', 'voluptas', 'aspernatur', 'aut', 'odit',
+        'fugit', 'consequuntur', 'magni', 'dolores', 'eos', 'ratione', 'sequi',
+        'nesciunt', 'neque', 'porro', 'quisquam', 'dolorem', 'adipisci', 'numquam',
+        'eius', 'modi', 'tempora', 'quaerat', 'magnam', 'aliquam', 'quam', 'minima',
+        'nostrum', 'exercitationem', 'ullam', 'corporis', 'suscipit', 'laboriosam'
+    ];
+
+    const loremStart = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.';
+
+    const type = document.getElementById('type');
+    const amount = document.getElementById('amount');
+    const startLorem = document.getElementById('startLorem');
+    const generateBtn = document.getElementById('generateBtn');
+    const output = document.getElementById('output');
+    const wordCount = document.getElementById('wordCount');
+    const copyBtn = document.getElementById('copyBtn');
+    const decreaseBtn = document.getElementById('decreaseBtn');
+    const increaseBtn = document.getElementById('increaseBtn');
+
+    function randomWord() {
+        return words[Math.floor(Math.random() * words.length)];
+    }
+
+    function capitalize(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    function generateSentence(minWords = 8, maxWords = 15) {
+        const count = Math.floor(Math.random() * (maxWords - minWords + 1)) + minWords;
+        let sentence = [];
+        for (let i = 0; i < count; i++) {
+            sentence.push(randomWord());
+        }
+        return capitalize(sentence.join(' ')) + '.';
+    }
+
+    function generateParagraph(minSentences = 4, maxSentences = 8) {
+        const count = Math.floor(Math.random() * (maxSentences - minSentences + 1)) + minSentences;
+        let sentences = [];
+        for (let i = 0; i < count; i++) {
+            sentences.push(generateSentence());
+        }
+        return sentences.join(' ');
+    }
+
+    function generate() {
+        const typeVal = type.value;
+        const amountVal = parseInt(amount.value) || 1;
+        const useLoremStart = startLorem.checked;
+        let result = '';
+
+        if (typeVal === 'paragraphs') {
+            let paragraphs = [];
+            for (let i = 0; i < amountVal; i++) {
+                if (i === 0 && useLoremStart) {
+                    paragraphs.push(loremStart + ' ' + generateParagraph(3, 6));
+                } else {
+                    paragraphs.push(generateParagraph());
+                }
+            }
+            result = paragraphs.join('\n\n');
+        } else if (typeVal === 'sentences') {
+            let sentences = [];
+            for (let i = 0; i < amountVal; i++) {
+                if (i === 0 && useLoremStart) {
+                    sentences.push(loremStart);
+                } else {
+                    sentences.push(generateSentence());
+                }
+            }
+            result = sentences.join(' ');
+        } else {
+            let wordList = [];
+            if (useLoremStart) {
+                wordList = ['Lorem', 'ipsum', 'dolor', 'sit', 'amet'];
+            }
+            while (wordList.length < amountVal) {
+                wordList.push(randomWord());
+            }
+            result = wordList.slice(0, amountVal).join(' ');
+        }
+
+        output.textContent = result;
+        const count = result.trim().split(/\s+/).length;
+        wordCount.textContent = count + ' word' + (count !== 1 ? 's' : '');
+    }
+
+    generateBtn.addEventListener('click', generate);
+
+    copyBtn.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(output.textContent);
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => copyBtn.textContent = 'Copy', 1500);
+    });
+
+    decreaseBtn.addEventListener('click', () => {
+        if (amount.value > 1) {
+            amount.value = parseInt(amount.value) - 1;
+        }
+    });
+
+    increaseBtn.addEventListener('click', () => {
+        if (amount.value < 100) {
+            amount.value = parseInt(amount.value) + 1;
+        }
+    });
+
+    // Generate on load
+    generate();
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .generator {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 600px;
+        margin: 0 auto;
+        text-align: left;
+    }
+
+    .options {
+        background: #252525;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+
+    .option-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+    }
+
+    .option-row:not(:last-child) {
+        border-bottom: 1px solid #333;
+    }
+
+    .option-row label {
+        font-size: 12px;
+        color: #888;
+    }
+
+    .option-row select {
+        padding: 8px 12px;
+        font-size: 12px;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 6px;
+        color: #fff;
+        outline: none;
+    }
+
+    .amount-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .amount-btn {
+        width: 32px;
+        height: 32px;
+        background: #333;
+        border: none;
+        border-radius: 6px;
+        color: #888;
+        font-size: 18px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .amount-btn:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .amount-control input {
+        width: 60px;
+        padding: 8px;
+        font-size: 14px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 6px;
+        color: #fff;
+        text-align: center;
+        outline: none;
+    }
+
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        width: 100%;
+    }
+
+    .checkbox-label input {
+        width: 18px;
+        height: 18px;
+        accent-color: #2ecc71;
+    }
+
+    .checkbox-label span {
+        font-size: 12px;
+        color: #888;
+    }
+
+    .generate-btn {
+        width: 100%;
+        padding: 14px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #fff;
+        border: none;
+        border-radius: 10px;
+        color: #0f0f0f;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s ease;
+    }
+
+    .generate-btn:hover {
+        opacity: 0.9;
+    }
+
+    .output-section {
+        background: #252525;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .output-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        border-bottom: 1px solid #333;
+    }
+
+    .word-count {
+        font-size: 11px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+    }
+
+    .copy-btn {
+        padding: 6px 12px;
+        font-size: 10px;
+        font-weight: 500;
+        background: #333;
+        border: none;
+        border-radius: 4px;
+        color: #888;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .output {
+        padding: 15px;
+        font-size: 13px;
+        line-height: 1.7;
+        color: #ccc;
+        max-height: 300px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+    }
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input[type=number] {
+        -moz-appearance: textfield;
+    }
+
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

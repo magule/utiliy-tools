@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BMI Calculator</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>BMI Calculator</h1>
+
+    <div class="calculator">
+        <div class="unit-toggle">
+            <button class="unit-btn active" data-unit="metric">Metric</button>
+            <button class="unit-btn" data-unit="imperial">Imperial</button>
+        </div>
+
+        <div class="input-section" id="metricInputs">
+            <div class="input-group">
+                <label>Height</label>
+                <div class="input-with-suffix">
+                    <input type="number" id="heightCm" value="170" min="1" max="300">
+                    <span class="suffix">cm</span>
+                </div>
+            </div>
+            <div class="input-group">
+                <label>Weight</label>
+                <div class="input-with-suffix">
+                    <input type="number" id="weightKg" value="70" min="1" max="500">
+                    <span class="suffix">kg</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-section hidden" id="imperialInputs">
+            <div class="input-group">
+                <label>Height</label>
+                <div class="dual-input">
+                    <div class="input-with-suffix">
+                        <input type="number" id="heightFt" value="5" min="1" max="9">
+                        <span class="suffix">ft</span>
+                    </div>
+                    <div class="input-with-suffix">
+                        <input type="number" id="heightIn" value="7" min="0" max="11">
+                        <span class="suffix">in</span>
+                    </div>
+                </div>
+            </div>
+            <div class="input-group">
+                <label>Weight</label>
+                <div class="input-with-suffix">
+                    <input type="number" id="weightLbs" value="154" min="1" max="1000">
+                    <span class="suffix">lbs</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="result-section">
+            <div class="bmi-display">
+                <span class="bmi-value" id="bmiValue">24.2</span>
+                <span class="bmi-label">BMI</span>
+            </div>
+
+            <div class="bmi-bar">
+                <div class="bmi-indicator" id="bmiIndicator"></div>
+                <div class="bmi-zones">
+                    <div class="zone underweight"></div>
+                    <div class="zone normal"></div>
+                    <div class="zone overweight"></div>
+                    <div class="zone obese"></div>
+                </div>
+            </div>
+
+            <div class="bmi-category" id="bmiCategory">Normal weight</div>
+
+            <div class="bmi-ranges">
+                <div class="range-item">
+                    <span class="range-color underweight"></span>
+                    <span class="range-label">Underweight</span>
+                    <span class="range-value">&lt; 18.5</span>
+                </div>
+                <div class="range-item">
+                    <span class="range-color normal"></span>
+                    <span class="range-label">Normal</span>
+                    <span class="range-value">18.5 - 24.9</span>
+                </div>
+                <div class="range-item">
+                    <span class="range-color overweight"></span>
+                    <span class="range-label">Overweight</span>
+                    <span class="range-value">25 - 29.9</span>
+                </div>
+                <div class="range-item">
+                    <span class="range-color obese"></span>
+                    <span class="range-label">Obese</span>
+                    <span class="range-value">&gt; 30</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let currentUnit = 'metric';
+
+    const unitBtns = document.querySelectorAll('.unit-btn');
+    const metricInputs = document.getElementById('metricInputs');
+    const imperialInputs = document.getElementById('imperialInputs');
+    const heightCm = document.getElementById('heightCm');
+    const weightKg = document.getElementById('weightKg');
+    const heightFt = document.getElementById('heightFt');
+    const heightIn = document.getElementById('heightIn');
+    const weightLbs = document.getElementById('weightLbs');
+    const bmiValue = document.getElementById('bmiValue');
+    const bmiCategory = document.getElementById('bmiCategory');
+    const bmiIndicator = document.getElementById('bmiIndicator');
+
+    function calculateBMI() {
+        let heightM, weightKgVal;
+
+        if (currentUnit === 'metric') {
+            heightM = parseFloat(heightCm.value) / 100;
+            weightKgVal = parseFloat(weightKg.value);
+        } else {
+            const totalInches = (parseFloat(heightFt.value) * 12) + parseFloat(heightIn.value);
+            heightM = totalInches * 0.0254;
+            weightKgVal = parseFloat(weightLbs.value) * 0.453592;
+        }
+
+        if (heightM <= 0 || weightKgVal <= 0) {
+            bmiValue.textContent = '--';
+            bmiCategory.textContent = 'Enter valid values';
+            bmiIndicator.style.left = '0%';
+            return;
+        }
+
+        const bmi = weightKgVal / (heightM * heightM);
+        bmiValue.textContent = bmi.toFixed(1);
+
+        // Update category and color
+        let category, color, position;
+        if (bmi < 18.5) {
+            category = 'Underweight';
+            color = '#3498db';
+            position = (bmi / 18.5) * 25;
+        } else if (bmi < 25) {
+            category = 'Normal weight';
+            color = '#2ecc71';
+            position = 25 + ((bmi - 18.5) / 6.5) * 25;
+        } else if (bmi < 30) {
+            category = 'Overweight';
+            color = '#f39c12';
+            position = 50 + ((bmi - 25) / 5) * 25;
+        } else {
+            category = 'Obese';
+            color = '#e74c3c';
+            position = Math.min(75 + ((bmi - 30) / 10) * 25, 100);
+        }
+
+        bmiCategory.textContent = category;
+        bmiCategory.style.color = color;
+        bmiValue.style.color = color;
+        bmiIndicator.style.left = `${position}%`;
+    }
+
+    unitBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            unitBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentUnit = btn.dataset.unit;
+
+            if (currentUnit === 'metric') {
+                metricInputs.classList.remove('hidden');
+                imperialInputs.classList.add('hidden');
+            } else {
+                metricInputs.classList.add('hidden');
+                imperialInputs.classList.remove('hidden');
+            }
+
+            calculateBMI();
+        });
+    });
+
+    [heightCm, weightKg, heightFt, heightIn, weightLbs].forEach(input => {
+        input.addEventListener('input', calculateBMI);
+    });
+
+    calculateBMI();
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .calculator {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    .unit-toggle {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 25px;
+    }
+
+    .unit-btn {
+        flex: 1;
+        padding: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 8px;
+        color: #666;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.2s ease;
+    }
+
+    .unit-btn:hover {
+        color: #888;
+    }
+
+    .unit-btn.active {
+        background: #333;
+        border-color: #444;
+        color: #fff;
+    }
+
+    .input-section {
+        margin-bottom: 25px;
+    }
+
+    .input-section.hidden {
+        display: none;
+    }
+
+    .input-group {
+        margin-bottom: 15px;
+        text-align: left;
+    }
+
+    .input-group label {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+        margin-bottom: 8px;
+    }
+
+    .input-with-suffix {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .input-with-suffix input {
+        width: 100%;
+        padding: 15px;
+        padding-right: 50px;
+        font-size: 1.25rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 10px;
+        color: #fff;
+        outline: none;
+    }
+
+    .input-with-suffix input:focus {
+        border-color: #444;
+    }
+
+    .suffix {
+        position: absolute;
+        right: 15px;
+        font-size: 14px;
+        color: #555;
+    }
+
+    .dual-input {
+        display: flex;
+        gap: 10px;
+    }
+
+    .dual-input .input-with-suffix {
+        flex: 1;
+    }
+
+    .result-section {
+        background: #252525;
+        border-radius: 12px;
+        padding: 25px;
+    }
+
+    .bmi-display {
+        margin-bottom: 20px;
+    }
+
+    .bmi-value {
+        display: block;
+        font-size: 4rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+        transition: color 0.3s ease;
+    }
+
+    .bmi-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: #555;
+    }
+
+    .bmi-bar {
+        position: relative;
+        height: 8px;
+        margin-bottom: 15px;
+    }
+
+    .bmi-zones {
+        display: flex;
+        height: 100%;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .zone {
+        flex: 1;
+    }
+
+    .zone.underweight { background: #3498db; }
+    .zone.normal { background: #2ecc71; }
+    .zone.overweight { background: #f39c12; }
+    .zone.obese { background: #e74c3c; }
+
+    .bmi-indicator {
+        position: absolute;
+        top: -4px;
+        width: 4px;
+        height: 16px;
+        background: #fff;
+        border-radius: 2px;
+        transition: left 0.3s ease;
+        transform: translateX(-50%);
+    }
+
+    .bmi-category {
+        font-size: 14px;
+        font-weight: 500;
+        color: #2ecc71;
+        margin-bottom: 20px;
+        transition: color 0.3s ease;
+    }
+
+    .bmi-ranges {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .range-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+    }
+
+    .range-color {
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+    }
+
+    .range-color.underweight { background: #3498db; }
+    .range-color.normal { background: #2ecc71; }
+    .range-color.overweight { background: #f39c12; }
+    .range-color.obese { background: #e74c3c; }
+
+    .range-label {
+        flex: 1;
+        color: #888;
+        text-align: left;
+    }
+
+    .range-value {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #555;
+    }
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input[type=number] {
+        -moz-appearance: textfield;
+    }
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

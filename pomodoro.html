@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pomodoro Timer</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Pomodoro Timer</h1>
+
+    <div class="pomodoro">
+        <div class="pomodoro-header">
+            <span class="pomodoro-label" contenteditable="true" spellcheck="false">Focus Session</span>
+        </div>
+
+        <div class="mode-tabs">
+            <button class="mode-tab active" data-mode="work">Work</button>
+            <button class="mode-tab" data-mode="shortBreak">Short Break</button>
+            <button class="mode-tab" data-mode="longBreak">Long Break</button>
+        </div>
+
+        <div class="time" id="time">25:00</div>
+
+        <div class="session-info">
+            <span id="sessionCount">Session 1 of 4</span>
+        </div>
+
+        <div class="buttons">
+            <button class="start-btn" id="startBtn">Start</button>
+            <button class="stop-btn" id="stopBtn">Stop</button>
+            <button class="reset-btn" id="resetBtn">Reset</button>
+        </div>
+
+        <div class="settings-toggle">
+            <button class="settings-btn" id="settingsBtn">Settings</button>
+        </div>
+
+        <div class="settings" id="settings">
+            <div class="setting-row">
+                <label>Work Duration</label>
+                <div class="setting-input">
+                    <input type="number" id="workDuration" min="1" max="60" value="25">
+                    <span>min</span>
+                </div>
+            </div>
+            <div class="setting-row">
+                <label>Short Break</label>
+                <div class="setting-input">
+                    <input type="number" id="shortBreakDuration" min="1" max="30" value="5">
+                    <span>min</span>
+                </div>
+            </div>
+            <div class="setting-row">
+                <label>Long Break</label>
+                <div class="setting-input">
+                    <input type="number" id="longBreakDuration" min="1" max="60" value="15">
+                    <span>min</span>
+                </div>
+            </div>
+            <div class="setting-row">
+                <label>Sessions until long break</label>
+                <div class="setting-input">
+                    <input type="number" id="sessionsCount" min="2" max="10" value="4">
+                    <span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const config = {
+        work: 25 * 60,
+        shortBreak: 5 * 60,
+        longBreak: 15 * 60,
+        sessionsUntilLong: 4
+    };
+
+    let currentMode = 'work';
+    let totalSeconds = config.work;
+    let intervalID = null;
+    let isRunning = false;
+    let currentSession = 1;
+
+    const timeDisplay = document.getElementById('time');
+    const sessionDisplay = document.getElementById('sessionCount');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsPanel = document.getElementById('settings');
+    const modeTabs = document.querySelectorAll('.mode-tab');
+
+    // Settings inputs
+    const workInput = document.getElementById('workDuration');
+    const shortBreakInput = document.getElementById('shortBreakDuration');
+    const longBreakInput = document.getElementById('longBreakDuration');
+    const sessionsInput = document.getElementById('sessionsCount');
+
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function updateDisplay() {
+        timeDisplay.textContent = formatTime(totalSeconds);
+        sessionDisplay.textContent = `Session ${currentSession} of ${config.sessionsUntilLong}`;
+    }
+
+    function setMode(mode) {
+        currentMode = mode;
+        modeTabs.forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.mode === mode);
+        });
+
+        if (mode === 'work') {
+            totalSeconds = config.work;
+            document.body.className = '';
+        } else if (mode === 'shortBreak') {
+            totalSeconds = config.shortBreak;
+            document.body.className = 'break-mode';
+        } else {
+            totalSeconds = config.longBreak;
+            document.body.className = 'break-mode long';
+        }
+
+        updateDisplay();
+    }
+
+    function tick() {
+        if (totalSeconds > 0) {
+            totalSeconds--;
+            updateDisplay();
+        } else {
+            clearInterval(intervalID);
+            isRunning = false;
+            playSound();
+
+            // Auto-switch modes
+            if (currentMode === 'work') {
+                if (currentSession >= config.sessionsUntilLong) {
+                    currentSession = 1;
+                    setMode('longBreak');
+                } else {
+                    setMode('shortBreak');
+                }
+            } else {
+                if (currentMode === 'shortBreak') {
+                    currentSession++;
+                }
+                setMode('work');
+            }
+        }
+    }
+
+    function playSound() {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+        gainNode.gain.value = 0.3;
+
+        oscillator.start();
+
+        setTimeout(() => {
+            oscillator.stop();
+        }, 200);
+
+        setTimeout(() => {
+            const osc2 = audioContext.createOscillator();
+            osc2.connect(gainNode);
+            osc2.frequency.value = 800;
+            osc2.type = 'sine';
+            osc2.start();
+            setTimeout(() => osc2.stop(), 200);
+        }, 300);
+    }
+
+    startBtn.addEventListener('click', () => {
+        if (!isRunning) {
+            intervalID = setInterval(tick, 1000);
+            isRunning = true;
+        }
+    });
+
+    stopBtn.addEventListener('click', () => {
+        if (isRunning) {
+            clearInterval(intervalID);
+            isRunning = false;
+        }
+    });
+
+    resetBtn.addEventListener('click', () => {
+        clearInterval(intervalID);
+        isRunning = false;
+        setMode(currentMode);
+    });
+
+    modeTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            if (!isRunning) {
+                setMode(tab.dataset.mode);
+            }
+        });
+    });
+
+    settingsBtn.addEventListener('click', () => {
+        settingsPanel.classList.toggle('open');
+        settingsBtn.textContent = settingsPanel.classList.contains('open') ? 'Close' : 'Settings';
+    });
+
+    // Settings change handlers
+    function updateConfig() {
+        config.work = (parseInt(workInput.value) || 25) * 60;
+        config.shortBreak = (parseInt(shortBreakInput.value) || 5) * 60;
+        config.longBreak = (parseInt(longBreakInput.value) || 15) * 60;
+        config.sessionsUntilLong = parseInt(sessionsInput.value) || 4;
+
+        if (!isRunning) {
+            setMode(currentMode);
+        }
+    }
+
+    [workInput, shortBreakInput, longBreakInput, sessionsInput].forEach(input => {
+        input.addEventListener('change', updateConfig);
+    });
+
+    // Initialize
+    updateDisplay();
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+        transition: background 0.3s ease;
+    }
+
+    body.break-mode {
+        background: #0f1a0f;
+    }
+
+    body.break-mode.long {
+        background: #0f0f1a;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .pomodoro {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 360px;
+        margin: 0 auto;
+    }
+
+    .pomodoro-header {
+        margin-bottom: 20px;
+    }
+
+    .pomodoro-label {
+        font-weight: 400;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: #666;
+        cursor: text;
+        padding: 4px 8px;
+        border-radius: 4px;
+        outline: none;
+        transition: background 0.2s ease;
+        display: inline-block;
+    }
+
+    .pomodoro-label:hover {
+        background: #252525;
+    }
+
+    .pomodoro-label:focus {
+        background: #252525;
+        color: #fff;
+    }
+
+    .mode-tabs {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+
+    .mode-tab {
+        background: #252525;
+        color: #666;
+        border: none;
+        padding: 8px 16px;
+        font-size: 11px;
+        font-weight: 500;
+        border-radius: 6px;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.2s ease;
+    }
+
+    .mode-tab:hover {
+        color: #888;
+    }
+
+    .mode-tab.active {
+        background: #333;
+        color: #fff;
+    }
+
+    .time {
+        font-weight: 300;
+        font-size: 4.5rem;
+        margin: 30px 0;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        letter-spacing: 2px;
+        color: #fff;
+    }
+
+    .session-info {
+        font-size: 12px;
+        color: #555;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 25px;
+    }
+
+    .buttons {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+
+    button {
+        margin: 0;
+        padding: 10px 20px;
+        font-size: 12px;
+        font-weight: 500;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: opacity 0.2s ease;
+    }
+
+    button:hover {
+        opacity: 0.8;
+    }
+
+    .start-btn {
+        background: #2ecc71;
+        color: white;
+    }
+
+    .stop-btn {
+        background: #e74c3c;
+        color: white;
+    }
+
+    .reset-btn {
+        background: #333;
+        color: #aaa;
+    }
+
+    .settings-toggle {
+        margin-top: 10px;
+    }
+
+    .settings-btn {
+        background: transparent;
+        color: #555;
+        border: 1px solid #333;
+        padding: 8px 16px;
+        font-size: 11px;
+    }
+
+    .settings-btn:hover {
+        color: #888;
+        border-color: #444;
+    }
+
+    .settings {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease, margin 0.3s ease;
+        margin-top: 0;
+    }
+
+    .settings.open {
+        max-height: 300px;
+        margin-top: 20px;
+    }
+
+    .setting-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #252525;
+    }
+
+    .setting-row:last-child {
+        border-bottom: none;
+    }
+
+    .setting-row label {
+        font-size: 12px;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .setting-input {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .setting-input input {
+        width: 50px;
+        padding: 6px;
+        text-align: center;
+        font-size: 14px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 6px;
+        color: #fff;
+        outline: none;
+    }
+
+    .setting-input input:focus {
+        border-color: #555;
+    }
+
+    .setting-input span {
+        font-size: 11px;
+        color: #555;
+        text-transform: uppercase;
+        min-width: 24px;
+    }
+
+    .setting-input input::-webkit-inner-spin-button,
+    .setting-input input::-webkit-outer-spin-button {
+        appearance: none;
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    .setting-input input[type=number] {
+        -moz-appearance: textfield;
+    }
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

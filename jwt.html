@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>JWT Decoder</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>JWT Decoder</h1>
+
+    <div class="decoder">
+        <div class="input-section">
+            <div class="section-header">
+                <span>JWT Token</span>
+                <button class="paste-btn" id="pasteBtn">Paste</button>
+            </div>
+            <textarea id="jwtInput" placeholder="Paste your JWT token here..."></textarea>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="decoded" id="decoded" style="display: none;">
+            <div class="section">
+                <div class="section-header">
+                    <span class="header-label">Header</span>
+                    <span class="alg" id="algorithm"></span>
+                </div>
+                <pre id="headerOutput"><code></code></pre>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <span class="payload-label">Payload</span>
+                    <span class="claims-count" id="claimsCount"></span>
+                </div>
+                <pre id="payloadOutput"><code></code></pre>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <span>Signature</span>
+                </div>
+                <div class="signature" id="signature"></div>
+            </div>
+
+            <div class="expiry" id="expiry"></div>
+        </div>
+    </div>
+
+<script>
+    const jwtInput = document.getElementById('jwtInput');
+    const status = document.getElementById('status');
+    const decoded = document.getElementById('decoded');
+    const headerOutput = document.getElementById('headerOutput').querySelector('code');
+    const payloadOutput = document.getElementById('payloadOutput').querySelector('code');
+    const signature = document.getElementById('signature');
+    const algorithm = document.getElementById('algorithm');
+    const claimsCount = document.getElementById('claimsCount');
+    const expiry = document.getElementById('expiry');
+    const pasteBtn = document.getElementById('pasteBtn');
+
+    function base64UrlDecode(str) {
+        str = str.replace(/-/g, '+').replace(/_/g, '/');
+        const pad = str.length % 4;
+        if (pad) {
+            str += '='.repeat(4 - pad);
+        }
+        return decodeURIComponent(atob(str).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+    }
+
+    function formatJSON(obj) {
+        return JSON.stringify(obj, null, 2);
+    }
+
+    function decodeJWT(token) {
+        const parts = token.trim().split('.');
+
+        if (parts.length !== 3) {
+            throw new Error('Invalid JWT format: expected 3 parts');
+        }
+
+        try {
+            const header = JSON.parse(base64UrlDecode(parts[0]));
+            const payload = JSON.parse(base64UrlDecode(parts[1]));
+            const sig = parts[2];
+
+            return { header, payload, signature: sig };
+        } catch (e) {
+            throw new Error('Failed to decode JWT: ' + e.message);
+        }
+    }
+
+    function updateDisplay() {
+        const token = jwtInput.value.trim();
+
+        if (!token) {
+            status.textContent = '';
+            status.className = 'status';
+            decoded.style.display = 'none';
+            return;
+        }
+
+        try {
+            const jwt = decodeJWT(token);
+
+            headerOutput.textContent = formatJSON(jwt.header);
+            payloadOutput.textContent = formatJSON(jwt.payload);
+            signature.textContent = jwt.signature;
+
+            algorithm.textContent = jwt.header.alg || 'Unknown';
+            claimsCount.textContent = Object.keys(jwt.payload).length + ' claims';
+
+            // Check expiry
+            if (jwt.payload.exp) {
+                const expDate = new Date(jwt.payload.exp * 1000);
+                const now = new Date();
+                const isExpired = expDate < now;
+
+                if (isExpired) {
+                    expiry.innerHTML = `<span class="expired">Expired: ${expDate.toLocaleString()}</span>`;
+                } else {
+                    const diff = expDate - now;
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    expiry.innerHTML = `<span class="valid">Expires: ${expDate.toLocaleString()} (in ${days}d ${hours}h)</span>`;
+                }
+            } else {
+                expiry.innerHTML = '<span class="no-expiry">No expiration set</span>';
+            }
+
+            status.textContent = 'Valid JWT';
+            status.className = 'status success';
+            decoded.style.display = 'block';
+
+        } catch (e) {
+            status.textContent = e.message;
+            status.className = 'status error';
+            decoded.style.display = 'none';
+        }
+    }
+
+    jwtInput.addEventListener('input', updateDisplay);
+
+    pasteBtn.addEventListener('click', async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            jwtInput.value = text;
+            updateDisplay();
+        } catch (e) {}
+    });
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .decoder {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 600px;
+        margin: 0 auto;
+        text-align: left;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .section-header span {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #555;
+    }
+
+    .paste-btn {
+        padding: 5px 12px;
+        font-size: 10px;
+        background: #333;
+        border: none;
+        border-radius: 4px;
+        color: #888;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: all 0.2s;
+    }
+
+    .paste-btn:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    .input-section {
+        margin-bottom: 15px;
+    }
+
+    textarea {
+        width: 100%;
+        height: 100px;
+        padding: 15px;
+        font-size: 12px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        line-height: 1.5;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 10px;
+        color: #fff;
+        outline: none;
+        resize: vertical;
+        word-break: break-all;
+    }
+
+    textarea:focus {
+        border-color: #444;
+    }
+
+    textarea::placeholder {
+        color: #555;
+    }
+
+    .status {
+        font-size: 12px;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        display: none;
+    }
+
+    .status.success {
+        display: block;
+        background: rgba(46, 204, 113, 0.1);
+        color: #2ecc71;
+    }
+
+    .status.error {
+        display: block;
+        background: rgba(231, 76, 60, 0.1);
+        color: #e74c3c;
+    }
+
+    .section {
+        margin-bottom: 15px;
+    }
+
+    .header-label {
+        color: #e74c3c !important;
+    }
+
+    .payload-label {
+        color: #9b59b6 !important;
+    }
+
+    .alg {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #e74c3c !important;
+        font-size: 12px !important;
+    }
+
+    .claims-count {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #9b59b6 !important;
+        font-size: 12px !important;
+    }
+
+    pre {
+        background: #252525;
+        border-radius: 8px;
+        padding: 15px;
+        overflow-x: auto;
+    }
+
+    pre code {
+        font-size: 12px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #2ecc71;
+        white-space: pre;
+    }
+
+    .signature {
+        background: #252525;
+        border-radius: 8px;
+        padding: 15px;
+        font-size: 11px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #3498db;
+        word-break: break-all;
+    }
+
+    .expiry {
+        padding: 12px 15px;
+        border-radius: 8px;
+        font-size: 12px;
+    }
+
+    .expired {
+        color: #e74c3c;
+    }
+
+    .valid {
+        color: #2ecc71;
+    }
+
+    .no-expiry {
+        color: #f1c40f;
+    }
+
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

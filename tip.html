@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tip Calculator</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Tip Calculator</h1>
+
+    <div class="calculator">
+        <div class="input-section">
+            <div class="input-group">
+                <label>Bill Amount</label>
+                <div class="input-with-prefix">
+                    <span class="prefix">$</span>
+                    <input type="number" id="billAmount" min="0" step="0.01" value="50.00" placeholder="0.00">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Tip Percentage</label>
+                <div class="tip-buttons">
+                    <button class="tip-btn" data-tip="10">10%</button>
+                    <button class="tip-btn active" data-tip="15">15%</button>
+                    <button class="tip-btn" data-tip="18">18%</button>
+                    <button class="tip-btn" data-tip="20">20%</button>
+                    <button class="tip-btn" data-tip="25">25%</button>
+                </div>
+                <div class="custom-tip">
+                    <input type="number" id="customTip" min="0" max="100" placeholder="Custom %">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Split Between</label>
+                <div class="split-control">
+                    <button class="split-btn" id="decreaseSplit">-</button>
+                    <span id="splitCount">1</span>
+                    <button class="split-btn" id="increaseSplit">+</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <div class="result-row">
+                <span class="result-label">Tip Amount</span>
+                <span class="result-value" id="tipAmount">$7.50</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Total</span>
+                <span class="result-value" id="totalAmount">$57.50</span>
+            </div>
+            <div class="result-row highlight" id="perPersonRow">
+                <span class="result-label">Per Person</span>
+                <span class="result-value large" id="perPerson">$57.50</span>
+            </div>
+        </div>
+
+        <button class="reset-btn" id="resetBtn">Reset</button>
+    </div>
+
+<script>
+    let billAmount = 50;
+    let tipPercent = 15;
+    let splitCount = 1;
+
+    const billInput = document.getElementById('billAmount');
+    const customTipInput = document.getElementById('customTip');
+    const splitCountDisplay = document.getElementById('splitCount');
+    const tipAmountDisplay = document.getElementById('tipAmount');
+    const totalAmountDisplay = document.getElementById('totalAmount');
+    const perPersonDisplay = document.getElementById('perPerson');
+    const perPersonRow = document.getElementById('perPersonRow');
+    const tipBtns = document.querySelectorAll('.tip-btn');
+    const decreaseSplitBtn = document.getElementById('decreaseSplit');
+    const increaseSplitBtn = document.getElementById('increaseSplit');
+    const resetBtn = document.getElementById('resetBtn');
+
+    function formatCurrency(amount) {
+        return '$' + amount.toFixed(2);
+    }
+
+    function calculate() {
+        const tipAmount = billAmount * (tipPercent / 100);
+        const total = billAmount + tipAmount;
+        const perPerson = total / splitCount;
+
+        tipAmountDisplay.textContent = formatCurrency(tipAmount);
+        totalAmountDisplay.textContent = formatCurrency(total);
+        perPersonDisplay.textContent = formatCurrency(perPerson);
+
+        // Show/hide per person row
+        perPersonRow.style.display = splitCount > 1 ? 'flex' : 'none';
+    }
+
+    function setActiveTipButton(percent) {
+        tipBtns.forEach(btn => {
+            btn.classList.toggle('active', parseInt(btn.dataset.tip) === percent);
+        });
+    }
+
+    // Bill amount input
+    billInput.addEventListener('input', (e) => {
+        billAmount = parseFloat(e.target.value) || 0;
+        calculate();
+    });
+
+    // Tip buttons
+    tipBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tipPercent = parseInt(btn.dataset.tip);
+            customTipInput.value = '';
+            setActiveTipButton(tipPercent);
+            calculate();
+        });
+    });
+
+    // Custom tip input
+    customTipInput.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        if (!isNaN(value)) {
+            tipPercent = value;
+            setActiveTipButton(-1); // Deselect all preset buttons
+            calculate();
+        }
+    });
+
+    // Split controls
+    decreaseSplitBtn.addEventListener('click', () => {
+        if (splitCount > 1) {
+            splitCount--;
+            splitCountDisplay.textContent = splitCount;
+            calculate();
+        }
+    });
+
+    increaseSplitBtn.addEventListener('click', () => {
+        if (splitCount < 50) {
+            splitCount++;
+            splitCountDisplay.textContent = splitCount;
+            calculate();
+        }
+    });
+
+    // Reset button
+    resetBtn.addEventListener('click', () => {
+        billAmount = 50;
+        tipPercent = 15;
+        splitCount = 1;
+
+        billInput.value = '50.00';
+        customTipInput.value = '';
+        splitCountDisplay.textContent = '1';
+        setActiveTipButton(15);
+        calculate();
+    });
+
+    // Initialize
+    calculate();
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        background: #0f0f0f;
+        color: #fff;
+    }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #888;
+    }
+
+    .calculator {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    .input-section {
+        margin-bottom: 30px;
+    }
+
+    .input-group {
+        margin-bottom: 25px;
+        text-align: left;
+    }
+
+    .input-group label {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: #555;
+        margin-bottom: 10px;
+    }
+
+    .input-with-prefix {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .prefix {
+        position: absolute;
+        left: 15px;
+        font-size: 1.5rem;
+        font-weight: 300;
+        color: #555;
+    }
+
+    .input-with-prefix input {
+        width: 100%;
+        padding: 15px 15px 15px 35px;
+        font-size: 1.5rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 10px;
+        color: #fff;
+        outline: none;
+        transition: border-color 0.2s ease;
+    }
+
+    .input-with-prefix input:focus {
+        border-color: #555;
+    }
+
+    .tip-buttons {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .tip-btn {
+        flex: 1;
+        padding: 12px 8px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 8px;
+        color: #888;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .tip-btn:hover {
+        border-color: #444;
+        color: #fff;
+    }
+
+    .tip-btn.active {
+        background: #2ecc71;
+        border-color: #2ecc71;
+        color: #fff;
+    }
+
+    .custom-tip input {
+        width: 100%;
+        padding: 12px 15px;
+        font-size: 14px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 8px;
+        color: #fff;
+        outline: none;
+        text-align: center;
+        transition: border-color 0.2s ease;
+    }
+
+    .custom-tip input:focus {
+        border-color: #555;
+    }
+
+    .custom-tip input::placeholder {
+        color: #555;
+    }
+
+    .split-control {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+    }
+
+    .split-btn {
+        width: 44px;
+        height: 44px;
+        font-size: 20px;
+        font-weight: 300;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 50%;
+        color: #888;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .split-btn:hover {
+        border-color: #555;
+        color: #fff;
+    }
+
+    #splitCount {
+        font-size: 2rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        width: 60px;
+        text-align: center;
+        color: #fff;
+    }
+
+    .results-section {
+        background: #252525;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .result-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #333;
+    }
+
+    .result-row:last-child {
+        border-bottom: none;
+    }
+
+    .result-row.highlight {
+        margin-top: 10px;
+        padding-top: 20px;
+        border-top: 1px solid #333;
+        border-bottom: none;
+    }
+
+    .result-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #666;
+    }
+
+    .result-value {
+        font-size: 1.25rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #fff;
+    }
+
+    .result-value.large {
+        font-size: 1.75rem;
+        color: #2ecc71;
+    }
+
+    .reset-btn {
+        width: 100%;
+        padding: 14px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #333;
+        border: none;
+        border-radius: 10px;
+        color: #888;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.2s ease;
+    }
+
+    .reset-btn:hover {
+        background: #3a3a3a;
+        color: #fff;
+    }
+
+    /* Hide number input spinners */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input[type=number] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: #555;
+        text-decoration: none;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: #fff;
+        border-color: #333;
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid #1a1a1a;
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #444;
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: #333;
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: #f39c12;
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #2ecc71;
+    }
+</style>
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+</body>
+</html>

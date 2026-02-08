@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Typing Speed Test</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+
+<body>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg class="moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+    </button>
+    <a href="index.html" class="back-btn">← Back</a>
+    <h1>Typing Speed Test</h1>
+
+    <div class="typing-app">
+        <div class="stats-bar">
+            <div class="stat">
+                <span class="stat-value" id="wpm">0</span>
+                <span class="stat-label">WPM</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="accuracy">100</span>
+                <span class="stat-label">Accuracy %</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="timer">60</span>
+                <span class="stat-label">Seconds</span>
+            </div>
+        </div>
+
+        <div class="text-display" id="textDisplay"></div>
+
+        <textarea id="inputArea" placeholder="Start typing here..." disabled></textarea>
+
+        <div class="controls">
+            <select id="duration">
+                <option value="30">30 seconds</option>
+                <option value="60" selected>60 seconds</option>
+                <option value="120">2 minutes</option>
+            </select>
+            <button class="start-btn" id="startBtn">Start Test</button>
+            <button class="reset-btn" id="resetBtn">Reset</button>
+        </div>
+
+        <div class="results" id="results" style="display: none;">
+            <h2>Results</h2>
+            <div class="results-grid">
+                <div class="result-item">
+                    <span class="result-value" id="finalWpm">0</span>
+                    <span class="result-label">Words Per Minute</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-value" id="finalAccuracy">0%</span>
+                    <span class="result-label">Accuracy</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-value" id="finalChars">0</span>
+                    <span class="result-label">Characters Typed</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-value" id="finalErrors">0</span>
+                    <span class="result-label">Errors</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+const sentences = [
+    "The quick brown fox jumps over the lazy dog near the riverbank.",
+    "Programming is the art of telling a computer what to do.",
+    "Success is not final, failure is not fatal, it is the courage to continue that counts.",
+    "The best way to predict the future is to create it yourself.",
+    "Every great developer you know got there by solving problems they were unqualified to solve.",
+    "Code is like humor, when you have to explain it, it is bad.",
+    "First solve the problem, then write the code to make it work.",
+    "The only way to do great work is to love what you do every day.",
+    "Simplicity is the soul of efficiency in programming and in life.",
+    "Make it work, make it right, make it fast, in that order.",
+    "A journey of a thousand miles begins with a single step forward.",
+    "Innovation distinguishes between a leader and a follower in any field.",
+    "The computer was born to solve problems that did not exist before.",
+    "Talk is cheap, show me the code and prove your skills.",
+    "Any fool can write code that a computer can understand easily."
+];
+
+let currentText = '';
+let startTime = null;
+let timerInterval = null;
+let duration = 60;
+let isRunning = false;
+let correctChars = 0;
+let totalChars = 0;
+
+const textDisplay = document.getElementById('textDisplay');
+const inputArea = document.getElementById('inputArea');
+const wpmDisplay = document.getElementById('wpm');
+const accuracyDisplay = document.getElementById('accuracy');
+const timerDisplay = document.getElementById('timer');
+const startBtn = document.getElementById('startBtn');
+const resetBtn = document.getElementById('resetBtn');
+const durationSelect = document.getElementById('duration');
+const results = document.getElementById('results');
+
+function generateText() {
+    const shuffled = [...sentences].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 4).join(' ');
+}
+
+function renderText() {
+    currentText = generateText();
+    textDisplay.innerHTML = currentText.split('').map(char =>
+        `<span class="char">${char}</span>`
+    ).join('');
+}
+
+function startTest() {
+    if (isRunning) return;
+
+    isRunning = true;
+    duration = parseInt(durationSelect.value);
+    timerDisplay.textContent = duration;
+    startTime = Date.now();
+    correctChars = 0;
+    totalChars = 0;
+
+    inputArea.disabled = false;
+    inputArea.value = '';
+    inputArea.focus();
+    startBtn.disabled = true;
+    durationSelect.disabled = true;
+    results.style.display = 'none';
+
+    renderText();
+
+    timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const remaining = duration - elapsed;
+        timerDisplay.textContent = Math.max(0, remaining);
+
+        if (remaining <= 0) {
+            endTest();
+        }
+    }, 100);
+}
+
+function endTest() {
+    isRunning = false;
+    clearInterval(timerInterval);
+    inputArea.disabled = true;
+    startBtn.disabled = false;
+    durationSelect.disabled = false;
+
+    const elapsed = duration;
+    const wpm = Math.round((correctChars / 5) / (elapsed / 60));
+    const accuracy = totalChars > 0 ? Math.round((correctChars / totalChars) * 100) : 0;
+
+    document.getElementById('finalWpm').textContent = wpm;
+    document.getElementById('finalAccuracy').textContent = accuracy + '%';
+    document.getElementById('finalChars').textContent = totalChars;
+    document.getElementById('finalErrors').textContent = totalChars - correctChars;
+
+    results.style.display = 'block';
+}
+
+function reset() {
+    isRunning = false;
+    clearInterval(timerInterval);
+    inputArea.disabled = true;
+    inputArea.value = '';
+    startBtn.disabled = false;
+    durationSelect.disabled = false;
+    duration = parseInt(durationSelect.value);
+    timerDisplay.textContent = duration;
+    wpmDisplay.textContent = '0';
+    accuracyDisplay.textContent = '100';
+    results.style.display = 'none';
+    correctChars = 0;
+    totalChars = 0;
+    renderText();
+}
+
+inputArea.addEventListener('input', () => {
+    if (!isRunning) return;
+
+    const typed = inputArea.value;
+    const chars = textDisplay.querySelectorAll('.char');
+
+    totalChars = typed.length;
+    correctChars = 0;
+
+    chars.forEach((char, i) => {
+        char.classList.remove('correct', 'incorrect', 'current');
+        if (i < typed.length) {
+            if (typed[i] === currentText[i]) {
+                char.classList.add('correct');
+                correctChars++;
+            } else {
+                char.classList.add('incorrect');
+            }
+        } else if (i === typed.length) {
+            char.classList.add('current');
+        }
+    });
+
+    // Calculate WPM
+    const elapsed = (Date.now() - startTime) / 1000 / 60;
+    const wpm = elapsed > 0 ? Math.round((correctChars / 5) / elapsed) : 0;
+    wpmDisplay.textContent = wpm;
+
+    // Calculate accuracy
+    const accuracy = totalChars > 0 ? Math.round((correctChars / totalChars) * 100) : 100;
+    accuracyDisplay.textContent = accuracy;
+
+    // Check if completed
+    if (typed.length >= currentText.length) {
+        currentText = generateText();
+        textDisplay.innerHTML = currentText.split('').map(char =>
+            `<span class="char">${char}</span>`
+        ).join('');
+        inputArea.value = '';
+    }
+});
+
+startBtn.addEventListener('click', startTest);
+resetBtn.addEventListener('click', reset);
+durationSelect.addEventListener('change', () => {
+    timerDisplay.textContent = durationSelect.value;
+});
+
+renderText();
+</script>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    body[data-theme="dark"] {
+        --bg: #0f0f0f;
+        --bg-card: #1a1a1a;
+        --bg-card-hover: #1e1e1e;
+        --bg-input: #252525;
+        --border: #2a2a2a;
+        --border-hover: #333;
+        --text: #fff;
+        --text-secondary: #ddd;
+        --text-muted: #888;
+        --text-subtle: #555;
+        --accent: #2ecc71;
+        --accent-hover: #27ae60;
+        --danger: #e74c3c;
+        --star: #f39c12;
+        --star-inactive: #333;
+    }
+
+    body[data-theme="light"] {
+        --bg: #f5f5f7;
+        --bg-card: #ffffff;
+        --bg-card-hover: #fafafa;
+        --bg-input: #f0f0f2;
+        --border: #d1d5db;
+        --border-hover: #14b8a6;
+        --text: #111827;
+        --text-secondary: #1f2937;
+        --text-muted: #4b5563;
+        --text-subtle: #6b7280;
+        --accent: #0d9488;
+        --accent-hover: #0f766e;
+        --danger: #dc2626;
+        --star: #f59e0b;
+        --star-inactive: #d1d5db;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        text-align: center;
+        padding: 60px 20px;
+        min-height: 100vh;
+        transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    .theme-toggle {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: var(--bg-card);
+        color: var(--text-muted);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .theme-toggle:hover {
+        border-color: var(--border-hover);
+        color: var(--text);
+    }
+
+    body[data-theme="dark"] .sun-icon { display: none; }
+    body[data-theme="dark"] .moon-icon { display: block; }
+    body[data-theme="light"] .sun-icon { display: block; }
+    body[data-theme="light"] .moon-icon { display: none; }
+
+    h1 {
+        margin-bottom: 40px;
+        font-size: 1.5rem;
+        font-weight: 400;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+    }
+
+    .typing-app {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 30px;
+        max-width: 700px;
+        margin: 0 auto;
+    }
+
+    .stats-bar {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .stat {
+        text-align: center;
+    }
+
+    .stat-value {
+        display: block;
+        font-size: 2.5rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: var(--accent);
+    }
+
+    .stat-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-subtle);
+    }
+
+    .text-display {
+        background: var(--bg-input);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        text-align: left;
+        font-size: 18px;
+        line-height: 1.8;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        min-height: 120px;
+    }
+
+    .char {
+        color: var(--text-muted);
+    }
+
+    .char.correct {
+        color: var(--accent);
+    }
+
+    .char.incorrect {
+        color: var(--danger);
+        text-decoration: underline;
+    }
+
+    .char.current {
+        background: var(--accent);
+        color: var(--bg);
+        border-radius: 2px;
+    }
+
+    #inputArea {
+        width: 100%;
+        padding: 15px;
+        font-size: 16px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        background: var(--bg-input);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        color: var(--text);
+        outline: none;
+        resize: none;
+        height: 80px;
+        margin-bottom: 20px;
+    }
+
+    #inputArea:focus {
+        border-color: var(--accent);
+    }
+
+    #inputArea:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .controls {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    select {
+        padding: 12px 20px;
+        font-size: 12px;
+        background: var(--bg-input);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text);
+        cursor: pointer;
+        outline: none;
+    }
+
+    .start-btn, .reset-btn {
+        padding: 12px 24px;
+        font-size: 12px;
+        font-weight: 500;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.2s ease;
+    }
+
+    .start-btn {
+        background: var(--accent);
+        color: white;
+    }
+
+    .start-btn:hover:not(:disabled) {
+        background: var(--accent-hover);
+    }
+
+    .start-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .reset-btn {
+        background: var(--bg-input);
+        color: var(--text-muted);
+    }
+
+    .reset-btn:hover {
+        color: var(--text);
+    }
+
+    .results {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+    }
+
+    .results h2 {
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: var(--text-muted);
+        margin-bottom: 20px;
+    }
+
+    .results-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+
+    .result-item {
+        background: var(--bg-input);
+        border-radius: 10px;
+        padding: 15px;
+    }
+
+    .result-value {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 300;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: var(--accent);
+    }
+
+    .result-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-subtle);
+    }
+
+    .back-btn {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        padding: 8px 16px;
+        font-size: 12px;
+        color: var(--text-subtle);
+        text-decoration: none;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        z-index: 100;
+    }
+
+    .back-btn:hover {
+        color: var(--text);
+        border-color: var(--border);
+    }
+
+    .rating-footer {
+        max-width: 900px;
+        margin: 60px auto 0;
+        padding-top: 30px;
+        border-top: 1px solid var(--border);
+        text-align: center;
+    }
+
+    .rating-section {
+        margin: 0;
+    }
+
+    .rating-label {
+        display: block;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-subtle);
+        margin-bottom: 8px;
+    }
+
+    .stars {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .star {
+        font-size: 20px;
+        color: var(--star-inactive);
+        cursor: pointer;
+        transition: color 0.2s ease, transform 0.1s ease;
+    }
+
+    .star:hover {
+        transform: scale(1.1);
+    }
+
+    .star.active {
+        color: var(--star);
+    }
+
+    .rating-thanks {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: var(--accent);
+    }
+
+    @media (max-width: 600px) {
+        body {
+            padding: 60px 16px 30px;
+        }
+        .theme-toggle {
+            top: 12px;
+            right: 12px;
+            width: 40px;
+            height: 40px;
+        }
+        h1 {
+            font-size: 1.2rem;
+            margin-bottom: 25px;
+        }
+        .back-btn {
+            top: 12px;
+            left: 12px;
+            padding: 6px 12px;
+            font-size: 11px;
+        }
+        .stats-bar {
+            gap: 20px;
+        }
+        .stat-value {
+            font-size: 1.8rem;
+        }
+        .text-display {
+            font-size: 14px;
+            padding: 15px;
+        }
+        .results-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .controls {
+            flex-direction: column;
+        }
+        .controls select, .controls button {
+            width: 100%;
+        }
+    }
+</style>
+
+    <footer class="rating-footer">
+        <div class="rating-section">
+            <span class="rating-label">Rate this tool</span>
+            <div class="stars" id="stars">
+                <span class="star" data-value="1">★</span>
+                <span class="star" data-value="2">★</span>
+                <span class="star" data-value="3">★</span>
+                <span class="star" data-value="4">★</span>
+                <span class="star" data-value="5">★</span>
+            </div>
+            <span class="rating-thanks" id="ratingThanks"></span>
+        </div>
+    </footer>
+
+<script>
+(function() {
+    const themeToggle = document.getElementById('themeToggle');
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.body.setAttribute('data-theme', savedTheme);
+
+    themeToggle.addEventListener('click', () => {
+        const currentTheme = document.body.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.body.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+    });
+})();
+</script>
+
+<script>
+(function() {
+    const pageId = window.location.pathname;
+    const storageKey = 'rated_' + pageId;
+    const stars = document.querySelectorAll('.star');
+    const thanksEl = document.getElementById('ratingThanks');
+
+    const existingRating = localStorage.getItem(storageKey);
+    if (existingRating) {
+        showRating(parseInt(existingRating));
+        thanksEl.textContent = 'Thanks for rating!';
+    }
+
+    function showRating(rating) {
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < rating);
+        });
+    }
+
+    stars.forEach((star, index) => {
+        star.addEventListener('mouseenter', () => {
+            if (!localStorage.getItem(storageKey)) {
+                showRating(index + 1);
+            }
+        });
+    });
+
+    document.getElementById('stars').addEventListener('mouseleave', () => {
+        if (!localStorage.getItem(storageKey)) {
+            showRating(0);
+        } else {
+            showRating(parseInt(localStorage.getItem(storageKey)));
+        }
+    });
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            if (localStorage.getItem(storageKey)) return;
+
+            const rating = parseInt(star.dataset.value);
+            localStorage.setItem(storageKey, rating);
+            showRating(rating);
+            thanksEl.textContent = 'Thanks for rating!';
+
+            fetch('https://formspree.io/f/xjgevpap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    page: pageId,
+                    rating: rating,
+                    timestamp: new Date().toISOString()
+                })
+            }).catch(() => {});
+        });
+    });
+})();
+</script>
+
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>
